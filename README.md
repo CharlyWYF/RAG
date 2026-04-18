@@ -83,17 +83,40 @@ DATA_DIR=data/protocols/cleaned
 
 ## 4. 构建向量索引
 
+推荐从项目根目录运行：
+
 ```bash
 python -m src.ingest
 ```
 
 成功后会生成 `chroma_db/`。
-默认是 **rebuild 模式**：会先重建索引目录（删除旧的 `chroma_db/`），避免重复写入导致检索片段重复。
+默认是 **rebuild + fixed chunk** 模式：会先重建索引目录（删除旧的 `chroma_db/`），避免重复写入导致检索片段重复。
+
+### Chunk 策略
+
+当前建库支持三种 chunk 策略：
+
+- `fixed`：固定长度切分，保留现有通用方案
+- `section`：按 Markdown 标题切分，适合清洗后的 RFC 文档
+- `hybrid`：先按标题切分，再对过长 section 做固定长度二次切分
+
+推荐对清洗后的 RFC 文档优先尝试：
+
+- `fixed`：作为基线方案
+- `hybrid`：作为主推荐方案
+
+例如：
+
+```bash
+python -m src.ingest --mode rebuild --chunk-strategy fixed
+python -m src.ingest --mode rebuild --chunk-strategy section
+python -m src.ingest --mode rebuild --chunk-strategy hybrid
+```
 
 如需“让向量库与当前文件保持一致（新增/更新/删除）”，使用：
 
 ```bash
-python -m src.ingest --mode sync
+python -m src.ingest --mode sync --chunk-strategy fixed
 ```
 
 `sync` 模式会：
@@ -105,7 +128,7 @@ python -m src.ingest --mode sync
 如需增量追加（保留旧库并添加新文档），使用：
 
 ```bash
-python -m src.ingest --mode append
+python -m src.ingest --mode append --chunk-strategy fixed
 ```
 
 `append` 模式会按 `source`（文件路径）去重：

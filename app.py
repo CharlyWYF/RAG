@@ -10,6 +10,58 @@ from src.config import load_settings
 from src.ingest import build_index
 from src.qa import answer_question, health_check
 
+ENV_PATH = Path(__file__).parent / ".env"
+EDITABLE_ENV_KEYS = [
+    "DATA_DIR",
+    "CHROMA_DIR",
+    "CHUNK_SIZE",
+    "CHUNK_OVERLAP",
+    "TOP_K",
+    "EMBEDDING_MODEL",
+    "CHAT_MODEL",
+    "OPENAI_BASE_URL",
+]
+
+
+def _read_env_file(env_path: Path) -> dict[str, str]:
+    if not env_path.exists():
+        return {}
+
+    values: dict[str, str] = {}
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key.strip()] = value.strip()
+    return values
+
+
+def _write_env_file(env_path: Path, updates: dict[str, str]) -> None:
+    existing_lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
+    updated_keys: set[str] = set()
+    new_lines: list[str] = []
+
+    for raw_line in existing_lines:
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in raw_line:
+            new_lines.append(raw_line)
+            continue
+
+        key, _ = raw_line.split("=", 1)
+        normalized_key = key.strip()
+        if normalized_key in updates:
+            new_lines.append(f"{normalized_key}={updates[normalized_key]}")
+            updated_keys.add(normalized_key)
+        else:
+            new_lines.append(raw_line)
+
+    for key, value in updates.items():
+        if key not in updated_keys:
+            new_lines.append(f"{key}={value}")
+
+    env_path.write_text("\n".join(new_lines).rstrip() + "\n", encoding="utf-8")
+
 
 def _stage_label(stage: str) -> str:
     labels = {
@@ -66,11 +118,11 @@ def _render_qa_tab(
                 progress_bar = st.progress(0)
 
             _STAGE_PROGRESS = {
-                "加载配置":         10,
-                "初始化检索器":     30,
-                "向量检索":         55,
-                "初始化大模型":     70,
-                "生成最终回答":     90,
+                "加载配置": 10,
+                "初始化检索器": 30,
+                "向量检索": 55,
+                "初始化大模型": 70,
+                "生成最终回答": 90,
             }
 
             def on_progress(message: str) -> None:
@@ -256,15 +308,23 @@ def _render_kb_tab() -> None:
 
     st.divider()
     st.markdown("### 向量库构建")
-    st.caption("选择构建模式并执行向量化。")
+    st.caption("选择构建模式和 chunk 策略后执行向量化。")
     mode = st.radio(
         "构建模式",
         options=["sync", "rebuild", "append"],
         horizontal=True,
         help="sync 会让向量库与当前源文件保持一致；rebuild 会重建；append 仅追加新增 source。",
     )
+    chunk_strategy = st.radio(
+        "Chunk 策略",
+        options=["fixed", "section", "hybrid"],
+        horizontal=True,
+        help="fixed 为固定长度切分；section 为按 Markdown 标题切分；hybrid 为先按标题切分再对长 section 二次切分。",
+    )
     if mode == "rebuild":
         st.warning("rebuild 模式会删除旧向量库后重建，请谨慎操作。")
+    if chunk_strategy == "hybrid":
+        st.info("hybrid 通常更适合清洗后的 RFC 文档，可兼顾结构信息与 chunk 长度控制。")
 
     if st.button("开始构建向量库", type="primary", use_container_width=True):
         build_progress_bar = st.progress(0, text="等待开始...")
@@ -284,7 +344,11 @@ def _render_kb_tab() -> None:
         with st.spinner("正在构建向量库..."):
             try:
                 on_build_progress("开始执行向量库构建...", 0.01)
-                stats = build_index(mode=mode, progress_callback=on_build_progress)
+                stats = build_index(
+                    mode=mode,
+                    chunk_strategy=chunk_strategy,
+                    progress_callback=on_build_progress,
+                )
             except Exception as exc:
                 on_build_progress("向量库构建失败。", 1.0)
                 st.error(f"构建失败：{exc}")
@@ -298,54 +362,147 @@ def _render_kb_tab() -> None:
                         st.markdown(f"**{stats.get('mode', '-')}**")
                 with c8:
                     with st.container(border=True):
+                        st.caption("Chunk 策略")
+                        st.markdown(f"**{chunk_strategy}**")
+                with c9:
+                    with st.container(border=True):
                         st.caption("文档总数")
                         st.markdown(f"**{int(stats.get('docs_total', 0))}**")
-                with c9:
+                with c10:
                     with st.container(border=True):
                         st.caption("写入文档数")
                         st.markdown(f"**{int(stats.get('docs_indexed', 0))}**")
-                with c10:
-                    with st.container(border=True):
-                        st.caption("跳过文档数")
-                        st.markdown(f"**{int(stats.get('skipped_docs', 0))}**")
 
                 d1, d2, d3, d4 = st.columns(4)
                 with d1:
                     with st.container(border=True):
+                        st.caption("跳过文档数")
+                        st.markdown(f"**{int(stats.get('skipped_docs', 0))}**")
+                with d2:
+                    with st.container(border=True):
                         st.caption("新增文档")
                         st.markdown(f"**{int(stats.get('added_docs', 0))}**")
-                with d2:
+                with d3:
                     with st.container(border=True):
                         st.caption("更新文档")
                         st.markdown(f"**{int(stats.get('updated_docs', 0))}**")
-                with d3:
+                with d4:
                     with st.container(border=True):
                         st.caption("删除文档")
                         st.markdown(f"**{int(stats.get('deleted_docs', 0))}**")
-                with d4:
+
+                e1, e2, e3, e4 = st.columns(4)
+                with e1:
                     with st.container(border=True):
                         st.caption("未变化文档")
                         st.markdown(f"**{int(stats.get('unchanged_docs', 0))}**")
-
-                r1, r2, r3 = st.columns(3)
-                with r1:
+                with e2:
                     with st.container(border=True):
                         st.caption("写入 Chunk")
                         st.markdown(f"**{int(stats.get('chunks_written', 0))}**")
-                with r2:
+                with e3:
                     with st.container(border=True):
                         st.caption("删除 Chunk")
                         st.markdown(f"**{int(stats.get('deleted_chunks', 0))}**")
-                with r3:
+                with e4:
                     with st.container(border=True):
                         st.caption("持久化目录")
                         st.code(str(stats.get("persist_dir", "-")), language="text")
 
 
+def _render_config_tab() -> None:
+    st.subheader("系统配置")
+    st.caption("查看当前生效配置，并可视化编辑 `.env` 中的关键字段。")
+
+    env_values = _read_env_file(ENV_PATH)
+
+    try:
+        settings = load_settings()
+    except Exception as exc:
+        settings = None
+        st.warning(f"当前配置未完全生效：{exc}")
+
+    st.markdown("### 当前生效配置")
+    if settings is not None:
+        effective_rows = [
+            {"配置项": "DATA_DIR", "当前值": settings.data_dir},
+            {"配置项": "CHROMA_DIR", "当前值": settings.chroma_dir},
+            {"配置项": "CHUNK_SIZE", "当前值": settings.chunk_size},
+            {"配置项": "CHUNK_OVERLAP", "当前值": settings.chunk_overlap},
+            {"配置项": "TOP_K", "当前值": settings.top_k},
+            {"配置项": "EMBEDDING_MODEL", "当前值": settings.embedding_model},
+            {"配置项": "CHAT_MODEL", "当前值": settings.chat_model},
+            {"配置项": "OPENAI_BASE_URL", "当前值": settings.openai_base_url or "(未设置)"},
+            {"配置项": "OPENAI_API_KEY", "当前值": "已配置" if settings.openai_api_key else "未配置"},
+        ]
+        st.dataframe(effective_rows, use_container_width=True, hide_index=True)
+    else:
+        st.info("当前无法完整加载生效配置，请先检查 `.env`。")
+
+    st.divider()
+    st.markdown("### 编辑 `.env` 配置")
+    st.caption("保存后，部分配置需要重新建库或刷新页面后生效。")
+
+    with st.form("env_config_form"):
+        data_dir = st.text_input("DATA_DIR", value=env_values.get("DATA_DIR", "data/protocols"))
+        chroma_dir = st.text_input("CHROMA_DIR", value=env_values.get("CHROMA_DIR", "chroma_db"))
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            chunk_size = st.text_input("CHUNK_SIZE", value=env_values.get("CHUNK_SIZE", "1200"))
+        with c2:
+            chunk_overlap = st.text_input("CHUNK_OVERLAP", value=env_values.get("CHUNK_OVERLAP", "150"))
+        with c3:
+            top_k = st.text_input("TOP_K", value=env_values.get("TOP_K", "4"))
+
+        embedding_model = st.text_input(
+            "EMBEDDING_MODEL",
+            value=env_values.get("EMBEDDING_MODEL", "text-embedding-3-small"),
+        )
+        chat_model = st.text_input(
+            "CHAT_MODEL",
+            value=env_values.get("CHAT_MODEL", "gpt-4o-mini"),
+        )
+        openai_base_url = st.text_input(
+            "OPENAI_BASE_URL",
+            value=env_values.get("OPENAI_BASE_URL", ""),
+            placeholder="可留空",
+        )
+        openai_api_key = st.text_input(
+            "OPENAI_API_KEY",
+            value=env_values.get("OPENAI_API_KEY", ""),
+            type="password",
+            placeholder="请输入 API Key",
+        )
+
+        submit = st.form_submit_button("保存配置并刷新页面", type="primary", use_container_width=True)
+
+    if submit:
+        updates = {
+            "DATA_DIR": data_dir.strip(),
+            "CHROMA_DIR": chroma_dir.strip(),
+            "CHUNK_SIZE": chunk_size.strip(),
+            "CHUNK_OVERLAP": chunk_overlap.strip(),
+            "TOP_K": top_k.strip(),
+            "EMBEDDING_MODEL": embedding_model.strip(),
+            "CHAT_MODEL": chat_model.strip(),
+            "OPENAI_BASE_URL": openai_base_url.strip(),
+            "OPENAI_API_KEY": openai_api_key.strip(),
+        }
+        _write_env_file(ENV_PATH, updates)
+        st.success("`.env` 已更新，正在刷新页面。")
+        st.rerun()
+
+    with st.expander("查看 `.env` 原始内容", expanded=False):
+        if ENV_PATH.exists():
+            st.code(ENV_PATH.read_text(encoding="utf-8"), language="dotenv")
+        else:
+            st.info("当前不存在 `.env` 文件。")
+
 
 st.set_page_config(page_title="RAG 网络协议问答", layout="wide")
 st.title("基于 RAG 的网络协议知识问答")
-st.caption("先运行 `python -m src.ingest` 建库，再在这里提问。")
+st.caption("先在`知识库管理`中建库，再在`问答`中提问。")
 
 with st.sidebar:
     st.header("运行控制台")
@@ -382,10 +539,13 @@ if test_api:
                 f"chat={status['chat_model']} | embedding={status['embedding_model']} | base_url={status['base_url']}"
             )
 
-tab_qa, tab_kb = st.tabs(["问答", "知识库管理"])
+tab_qa, tab_kb, tab_config = st.tabs(["问答", "知识库管理", "系统配置"])
 
 with tab_qa:
     _render_qa_tab(progress_placeholder, log_placeholder, perf_placeholder)
 
 with tab_kb:
     _render_kb_tab()
+
+with tab_config:
+    _render_config_tab()

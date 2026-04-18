@@ -2,18 +2,22 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import shutil
 from pathlib import Path
 from typing import Any, Callable
 
 ProgressCallback = Callable[[str, float | None], None]
 
+from langchain_core.documents import Document
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from src.config import load_settings
+
+SECTION_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 
 
 def _extract_source(metadata: dict | None) -> str:
@@ -190,12 +194,107 @@ def _new_stats(mode_text: str, docs_total: int, persist_dir: Path) -> dict[str, 
     }
 
 
+def _build_splitter(settings: Any) -> RecursiveCharacterTextSplitter:
+    return RecursiveCharacterTextSplitter(
+        chunk_size=settings.chunk_size,
+        chunk_overlap=settings.chunk_overlap,
+    )
+
+
+def _split_markdown_sections(doc: Document) -> list[Document]:
+    text = doc.page_content
+    lines = text.splitlines()
+
+    metadata_lines: list[str] = []
+    content_start = 0
+    if lines and lines[0].strip() == "# Source Metadata":
+        metadata_lines.append(lines[0])
+        for index in range(1, len(lines)):
+            metadata_lines.append(lines[index])
+            if not lines[index].strip():
+                content_start = index + 1
+                break
+
+    body_lines = lines[content_start:]
+    sections: list[tuple[str | None, list[str]]] = []
+    current_title: str | None = None
+    current_lines: list[str] = []
+
+    for line in body_lines:
+        heading_match = SECTION_HEADING_RE.match(line)
+        if heading_match:
+            if current_lines:
+                sections.append((current_title, current_lines))
+            current_title = line.strip()
+            current_lines = [line]
+            continue
+        current_lines.append(line)
+
+    if current_lines:
+        sections.append((current_title, current_lines))
+
+    if not sections:
+        return [doc]
+
+    section_docs: list[Document] = []
+    for index, (section_title, section_lines) in enumerate(sections):
+        content = "\n".join(section_lines).strip()
+        if not content:
+            continue
+        merged = content
+        if metadata_lines:
+            merged = "\n".join(metadata_lines).rstrip() + "\n\n" + content
+        metadata = dict(doc.metadata)
+        metadata["chunk_strategy"] = "section"
+        if section_title:
+            metadata["section_title"] = section_title.lstrip("# ").strip()
+            metadata["section_heading"] = section_title
+        metadata["section_index"] = index
+        section_docs.append(Document(page_content=merged, metadata=metadata))
+
+    return section_docs or [doc]
+
+
+def _split_docs(
+    docs: list[Document],
+    strategy: str,
+    splitter: RecursiveCharacterTextSplitter,
+) -> list[Document]:
+    if strategy == "fixed":
+        chunks = splitter.split_documents(docs)
+        for chunk in chunks:
+            if isinstance(chunk.metadata, dict):
+                chunk.metadata["chunk_strategy"] = "fixed"
+        return chunks
+
+    if strategy == "section":
+        chunks: list[Document] = []
+        for doc in docs:
+            chunks.extend(_split_markdown_sections(doc))
+        return chunks
+
+    if strategy == "hybrid":
+        section_docs: list[Document] = []
+        for doc in docs:
+            section_docs.extend(_split_markdown_sections(doc))
+        chunks = splitter.split_documents(section_docs)
+        for chunk in chunks:
+            if isinstance(chunk.metadata, dict):
+                chunk.metadata["chunk_strategy"] = "hybrid"
+        return chunks
+
+    raise ValueError(f"Unsupported chunk strategy: {strategy}")
+
+
 def build_index(
     mode: str = "rebuild",
+    chunk_strategy: str = "fixed",
     progress_callback: ProgressCallback | None = None,
 ) -> dict[str, int | str]:
     if mode not in {"rebuild", "append", "sync"}:
         raise ValueError(f"Unsupported mode: {mode}")
+    if chunk_strategy not in {"fixed", "section", "hybrid"}:
+        raise ValueError(f"Unsupported chunk strategy: {chunk_strategy}")
 
     settings = load_settings()
 
@@ -224,10 +323,7 @@ def build_index(
     if not docs:
         raise ValueError(f"No .txt or .md files found under {data_path}")
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=settings.chunk_size,
-        chunk_overlap=settings.chunk_overlap,
-    )
+    splitter = _build_splitter(settings)
 
     embedding_kwargs = {
         "model": settings.embedding_model,
@@ -244,16 +340,16 @@ def build_index(
     chroma_dir.mkdir(parents=True, exist_ok=True)
 
     source_hash_by_key = _build_current_source_hashes(docs)
-    stats = _new_stats(mode, len(docs), chroma_dir)
+    stats = _new_stats(f"{mode}:{chunk_strategy}", len(docs), chroma_dir)
 
-    message = f"Preparing to index {len(docs)} documents..."
+    message = f"Preparing to index {len(docs)} documents with chunk_strategy={chunk_strategy}..."
     print(message)
     if progress_callback:
         progress_callback(message, 0.05)
 
     if mode == "rebuild":
         docs_to_index = docs
-        chunks = splitter.split_documents(docs_to_index)
+        chunks = _split_docs(docs_to_index, chunk_strategy, splitter)
         _attach_source_hash(chunks, source_hash_by_key)
         message = f"Split into {len(chunks)} chunks, now computing embeddings..."
         print(message)
@@ -270,7 +366,6 @@ def build_index(
         print(message)
         if progress_callback:
             progress_callback(message, 0.98)
-
 
         stats["docs_indexed"] = len(docs_to_index)
         stats["added_docs"] = len(docs_to_index)
@@ -298,7 +393,7 @@ def build_index(
             added_keys = current_keys - existing_keys
             unchanged_keys = current_keys & existing_keys
             docs_to_index = _select_docs_by_keys(docs, added_keys)
-            chunks = splitter.split_documents(docs_to_index) if docs_to_index else []
+            chunks = _split_docs(docs_to_index, chunk_strategy, splitter) if docs_to_index else []
             _attach_source_hash(chunks, source_hash_by_key)
             if chunks:
                 message = f"Append mode will write {len(chunks)} chunks."
@@ -332,7 +427,7 @@ def build_index(
 
             keys_to_index = added_keys | updated_keys
             docs_to_index = _select_docs_by_keys(docs, keys_to_index)
-            chunks = splitter.split_documents(docs_to_index) if docs_to_index else []
+            chunks = _split_docs(docs_to_index, chunk_strategy, splitter) if docs_to_index else []
             _attach_source_hash(chunks, source_hash_by_key)
             if chunks:
                 message = (
@@ -372,6 +467,12 @@ if __name__ == "__main__":
         default="rebuild",
         help="rebuild: recreate vector DB; append: add only new sources; sync: add/update/delete to match source files",
     )
+    parser.add_argument(
+        "--chunk-strategy",
+        choices=["fixed", "section", "hybrid"],
+        default="fixed",
+        help="fixed: existing fixed-size chunking; section: split by markdown headings; hybrid: split by headings then re-split long sections",
+    )
     args = parser.parse_args()
 
-    build_index(mode=args.mode)
+    build_index(mode=args.mode, chunk_strategy=args.chunk_strategy)
