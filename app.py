@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+# streamlit_app_label: 问答页面
+
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import streamlit as st
 
@@ -116,6 +119,25 @@ def _is_chroma_ready(chroma_dir: Path) -> bool:
     return (chroma_dir / "chroma.sqlite3").exists()
 
 
+def _resolve_source_path(file_path: str) -> Path:
+    normalized = file_path.replace("\\", "/").strip()
+    path = Path(normalized).expanduser()
+    if path.is_absolute():
+        return path.resolve()
+
+    path_str = path.as_posix()
+    project_root = Path(__file__).parent
+    if path_str.startswith("data/"):
+        return (project_root / path_str).resolve()
+
+    return (project_root / path).resolve()
+
+
+def _build_preview_url(file_path: str) -> str:
+    resolved = _resolve_source_path(file_path)
+    return f"/来源预览?path={quote(str(resolved))}"
+
+
 def _render_qa_tab(
     progress_placeholder,
     log_placeholder,
@@ -173,44 +195,73 @@ def _render_qa_tab(
                 on_progress("执行完成。")
                 progress_placeholder.success("问答流程执行完成。")
                 main_status.empty()
+                st.session_state["qa_last_question"] = question.strip()
+                st.session_state["qa_last_result"] = result
 
-                timings = result.get("timings", [])
-                total_seconds = float(result.get("total_seconds", 0.0))
-                timing_rows = _format_timing_rows(timings)
+    stored_question = str(st.session_state.get("qa_last_question", "")).strip()
+    stored_result = st.session_state.get("qa_last_result")
+    if not stored_question or not isinstance(stored_result, dict):
+        return
 
-                with perf_placeholder.container():
-                    st.metric("端到端总耗时", f"{total_seconds:.3f} 秒")
-                    if timing_rows:
-                        st.dataframe(timing_rows, use_container_width=True, hide_index=True)
+    timings = stored_result.get("timings", [])
+    total_seconds = float(stored_result.get("total_seconds", 0.0))
+    timing_rows = _format_timing_rows(timings)
 
-                with st.container(border=True):
-                    st.markdown("### 最终回答")
-                    st.caption(f"问题：{question.strip()}")
-                    st.write(result["answer"])
+    with perf_placeholder.container():
+        st.metric("端到端总耗时", f"{total_seconds:.3f} 秒")
+        if timing_rows:
+            st.dataframe(timing_rows, use_container_width=True, hide_index=True)
 
-                contexts = result.get("contexts", [])
-                sources = result.get("sources", [])
-                col1, col2 = st.columns(2)
-                col1.metric("检索片段数", len(contexts))
-                col2.metric("来源文件数", len(sources))
+    with st.container(border=True):
+        st.markdown("### 最终回答")
+        st.caption(f"问题：{stored_question}")
+        st.write(stored_result["answer"])
 
-                with st.expander(f"检索片段（{len(contexts)}）", expanded=False):
-                    if not contexts:
-                        st.write("无上下文。")
-                    for idx, ctx in enumerate(contexts, start=1):
-                        with st.container(border=True):
-                            st.caption(f"片段 {idx} / {len(contexts)}")
-                            st.write(ctx)
+    contexts = stored_result.get("contexts", [])
+    sources = stored_result.get("sources", [])
+    unique_sources = list(dict.fromkeys(str(src) for src in sources))
+    col1, col2 = st.columns(2)
+    col1.metric("检索片段数", len(contexts))
+    col2.metric("来源文件数", len(unique_sources))
 
-                with st.expander(f"来源文件（{len(sources)}）", expanded=False):
-                    if not sources:
-                        st.write("无来源。")
-                    for src in sources:
-                        st.write(src)
+    with st.expander(f"检索片段（{len(contexts)}）", expanded=False):
+        if not contexts:
+            st.write("无上下文。")
+        for idx, ctx in enumerate(contexts, start=1):
+            source_name = str(sources[idx - 1]) if idx - 1 < len(sources) else "unknown"
+            resolved_source = _resolve_source_path(source_name) if source_name != "unknown" else None
+            preview_url = _build_preview_url(source_name) if source_name != "unknown" else ""
+            with st.container(border=True):
+                st.caption(f"片段 {idx} / {len(contexts)}")
+                if source_name != "unknown":
+                    source_col, action_col = st.columns([5, 1])
+                    with source_col:
+                        st.caption(f"来源：{source_name}")
+                        if resolved_source is not None:
+                            st.caption(f"解析路径：{resolved_source}")
+                    with action_col:
+                        st.link_button("预览", preview_url, use_container_width=True)
+                else:
+                    st.caption(f"来源：{source_name}")
+                st.write(ctx)
+
+    with st.expander(f"来源文件（{len(unique_sources)}）", expanded=False):
+        if not unique_sources:
+            st.write("无来源。")
+        else:
+            for src in unique_sources:
+                resolved_src = _resolve_source_path(src)
+                preview_url = _build_preview_url(src)
+                src_col, action_col = st.columns([5, 1])
+                with src_col:
+                    st.write(src)
+                    st.caption(f"解析路径：{resolved_src}")
+                with action_col:
+                    st.link_button("预览", preview_url, use_container_width=True)
 
 
 def _render_raw_docs_tab() -> None:
-    st.subheader("原始文档处理")
+    st.subheader("文档处理")
     st.caption("管理 `data/protocols/raw` 下的原始文档，并将单个文件清洗到 `data/protocols/cleaned`。")
 
     raw_dir = RAW_DOCS_DIR
@@ -676,7 +727,7 @@ def _render_config_tab() -> None:
 
 st.set_page_config(page_title="RAG 网络协议问答", layout="wide")
 st.title("基于 RAG 的网络协议知识问答")
-st.caption("先在`原始文档处理`中准备和清洗文档，再在`知识库管理`中建库，最后到`问答`中提问。")
+st.caption("先在`文档处理`中准备和清洗文档，再在`知识库管理`中建库，最后到`问答`中提问。")
 
 with st.sidebar:
     st.header("运行控制台")
@@ -713,7 +764,12 @@ if test_api:
                 f"chat={status['chat_model']} | embedding={status['embedding_model']} | base_url={status['base_url']}"
             )
 
-tab_qa, tab_raw_docs, tab_kb, tab_config = st.tabs(["问答", "原始文档处理", "知识库管理", "系统配置"])
+tab_qa, tab_raw_docs, tab_kb, tab_config = st.tabs([
+    "问答",
+    "文档处理",
+    "知识库管理",
+    "系统配置",
+])
 
 with tab_qa:
     _render_qa_tab(progress_placeholder, log_placeholder, perf_placeholder)

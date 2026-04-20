@@ -47,10 +47,9 @@ LLM-Based Knowledge Question-Answering System for Network Protocol Standards
 - 调研可用 embedding 模型
 - 选择一个主 embedding 模型，理由写清楚：性能、速度、资源消耗
 - 建立向量生成脚本
-- 建立向量库存储方案，优先考虑 FAISS
+- 建立向量库存储方案，优先考虑 Chroma
 - 为每个 chunk 存储文本、向量、协议名、章节号、来源链接
 - 实现基础 Top-K 检索
-- 实现 metadata filter，例如只查某个协议
 - 准备一批测试问题，观察召回结果
 - 评估检索质量：能否召回正确章节、是否存在大量无关片段
 - 对比不同 chunk 大小的检索效果
@@ -138,7 +137,7 @@ LLM-Based Knowledge Question-Answering System for Network Protocol Standards
 ## 当前最关键的优先级
 - 先确定协议文档范围
 - 先做数据清洗 + chunking
-- 先跑通 embedding + FAISS + Top-K retrieval
+- 先跑通 embedding + Chroma + Top-K retrieval
 - 再接 LLM + prompt + citation
 - 最后做评估 + 前端 + 论文
 
