@@ -139,7 +139,7 @@ python -m src.ingest --mode append --chunk-strategy fixed
 - 仅新增来源文件会被切分并写入
 - 不会处理“文件内容更新”和“文件删除”
 
-## 5. 网页端知识库管理（新增）
+## 5. 网页端知识库管理
 
 页面现在分为三个标签：
 
