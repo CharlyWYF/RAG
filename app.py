@@ -6,6 +6,7 @@ from typing import Any
 
 import streamlit as st
 
+from scripts.clean_protocol_docs import process_file
 from src.config import load_settings
 from src.ingest import build_index
 from src.qa import answer_question, health_check
@@ -21,6 +22,9 @@ EDITABLE_ENV_KEYS = [
     "CHAT_MODEL",
     "OPENAI_BASE_URL",
 ]
+RAW_DOCS_DIR = Path(__file__).parent / "data" / "protocols" / "raw"
+CLEANED_DOCS_DIR = Path(__file__).parent / "data" / "protocols" / "cleaned"
+RAW_DOC_SUFFIXES = {".txt", ".md", ".html", ".htm"}
 
 
 def _read_env_file(env_path: Path) -> dict[str, str]:
@@ -87,6 +91,25 @@ def _format_timing_rows(timings: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _list_raw_docs(data_dir: Path) -> list[Path]:
     files = list(data_dir.rglob("*.md")) + list(data_dir.rglob("*.txt"))
     return sorted(files, key=lambda p: str(p.relative_to(data_dir)).lower())
+
+
+def _list_processable_raw_docs(data_dir: Path) -> list[Path]:
+    if not data_dir.exists():
+        return []
+    files = [
+        path
+        for path in data_dir.rglob("*")
+        if path.is_file() and path.suffix.lower() in RAW_DOC_SUFFIXES
+    ]
+    return sorted(files, key=lambda p: str(p.relative_to(data_dir)).lower())
+
+
+def _cleaned_target_for(raw_file: Path, raw_base: Path, cleaned_base: Path) -> Path:
+    return cleaned_base / raw_file.relative_to(raw_base).with_suffix(".md")
+
+
+def _is_cleaned(raw_file: Path, raw_base: Path, cleaned_base: Path) -> bool:
+    return _cleaned_target_for(raw_file, raw_base, cleaned_base).exists()
 
 
 def _is_chroma_ready(chroma_dir: Path) -> bool:
@@ -184,6 +207,157 @@ def _render_qa_tab(
                         st.write("无来源。")
                     for src in sources:
                         st.write(src)
+
+
+def _render_raw_docs_tab() -> None:
+    st.subheader("原始文档处理")
+    st.caption("管理 `data/protocols/raw` 下的原始文档，并将单个文件清洗到 `data/protocols/cleaned`。")
+
+    raw_dir = RAW_DOCS_DIR
+    cleaned_dir = CLEANED_DOCS_DIR
+    docs = _list_processable_raw_docs(raw_dir)
+    cleaned_count = sum(1 for doc in docs if _is_cleaned(doc, raw_dir, cleaned_dir))
+
+    st.markdown("### 目录与状态")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        with st.container(border=True):
+            st.caption("原始文档数")
+            st.markdown(f"**{len(docs)}**")
+    with c2:
+        with st.container(border=True):
+            st.caption("已清洗")
+            st.markdown(f"**{cleaned_count}**")
+    with c3:
+        with st.container(border=True):
+            st.caption("未清洗")
+            st.markdown(f"**{len(docs) - cleaned_count}**")
+
+    p1, p2 = st.columns(2)
+    with p1:
+        with st.container(border=True):
+            st.caption("raw_dir")
+            st.code(str(raw_dir), language="text")
+    with p2:
+        with st.container(border=True):
+            st.caption("cleaned_dir")
+            st.code(str(cleaned_dir), language="text")
+
+    st.divider()
+    st.markdown("### 上传原始文档")
+    st.caption("支持上传 `.txt`、`.md`、`.html`、`.htm` 到 raw 目录。")
+
+    upload_status_placeholder = st.empty()
+    last_upload = st.session_state.get("raw_docs_last_upload")
+    if isinstance(last_upload, dict):
+        upload_message_type = last_upload.get("type", "success")
+        upload_message_text = str(last_upload.get("message", ""))
+        if upload_message_text:
+            if upload_message_type == "error":
+                upload_status_placeholder.error(upload_message_text)
+            else:
+                upload_status_placeholder.success(upload_message_text)
+
+    uploader_version = int(st.session_state.get("raw_docs_uploader_version", 0))
+    upload_file = st.file_uploader(
+        "上传原始文件",
+        type=["txt", "md", "html", "htm"],
+        accept_multiple_files=False,
+        key=f"raw_docs_uploader_{uploader_version}",
+    )
+    overwrite_upload = st.checkbox(
+        "允许覆盖同名原始文件",
+        value=False,
+        key=f"raw_docs_overwrite_{uploader_version}",
+    )
+    if st.button("保存到 raw 目录", use_container_width=True, key="save_raw_doc"):
+        if upload_file is None:
+            upload_status_placeholder.warning("请先选择文件。")
+        else:
+            target = raw_dir / upload_file.name
+            if target.exists() and not overwrite_upload:
+                upload_status_placeholder.warning("存在同名文件，请勾选“允许覆盖同名原始文件”后重试。")
+            else:
+                raw_dir.mkdir(parents=True, exist_ok=True)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(upload_file.getvalue())
+                st.session_state["raw_docs_uploader_version"] = uploader_version + 1
+                st.session_state["raw_docs_last_upload"] = {
+                    "type": "success",
+                    "message": f"原始文件上传成功：{upload_file.name}",
+                }
+                st.rerun()
+
+    st.divider()
+    st.markdown("### 原始文档列表")
+    st.caption("查看每个原始文件是否已经清洗，并支持单文件清洗。")
+
+    if docs:
+        rows = []
+        for doc in docs:
+            rel = doc.relative_to(raw_dir)
+            cleaned_target = _cleaned_target_for(doc, raw_dir, cleaned_dir)
+            stat = doc.stat()
+            rows.append(
+                {
+                    "原始文件": str(rel),
+                    "大小(KB)": round(stat.st_size / 1024, 2),
+                    "修改时间": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                    "清洗状态": "已清洗" if cleaned_target.exists() else "未清洗",
+                    "cleaned 文件": str(cleaned_target.relative_to(cleaned_dir)),
+                }
+            )
+
+        with st.container(border=True):
+            st.caption("文件列表")
+            st.dataframe(rows, use_container_width=True, hide_index=True)
+
+        options = [str(doc.relative_to(raw_dir)) for doc in docs]
+        with st.container(border=True):
+            st.caption("单文件清洗")
+            selected_raw = st.selectbox("选择要清洗的原始文件", options=options, key="clean_single_raw")
+            selected_path = raw_dir / selected_raw
+            cleaned_target = _cleaned_target_for(selected_path, raw_dir, cleaned_dir)
+            status_placeholder = st.empty()
+            last_processed = st.session_state.get("raw_docs_last_processed")
+            should_show_existing_info = cleaned_target.exists()
+            if isinstance(last_processed, dict):
+                message_type = last_processed.get("type", "success")
+                message_text = str(last_processed.get("message", ""))
+                last_file = str(last_processed.get("file", ""))
+                if message_type == "success" and last_file == selected_raw:
+                    should_show_existing_info = False
+                if message_text:
+                    if message_type == "error":
+                        status_placeholder.error(message_text)
+                    else:
+                        status_placeholder.success(message_text)
+            if should_show_existing_info:
+                st.info(f"该文件已存在清洗结果，将重新生成：{cleaned_target}")
+            if st.button("开始清洗所选文件", type="primary", use_container_width=True, key="process_single_raw"):
+                try:
+                    with st.spinner(f"正在清洗：{selected_raw}"):
+                        target = process_file(selected_path, raw_dir, cleaned_dir)
+                except Exception as exc:
+                    error_message = f"清洗失败：{exc}"
+                    st.session_state["raw_docs_last_processed"] = {
+                        "type": "error",
+                        "message": error_message,
+                        "file": selected_raw,
+                    }
+                    status_placeholder.error(error_message)
+                else:
+                    success_message = f"清洗完成：{selected_raw} -> {target.relative_to(cleaned_dir)}"
+                    st.session_state["raw_docs_last_processed"] = {
+                        "type": "success",
+                        "message": success_message,
+                        "file": selected_raw,
+                    }
+                    st.toast(f"已完成清洗：{selected_raw}")
+                    st.rerun()
+    else:
+        st.info("当前 raw 目录下暂无可处理文件。")
 
 
 def _render_kb_tab() -> None:
@@ -502,7 +676,7 @@ def _render_config_tab() -> None:
 
 st.set_page_config(page_title="RAG 网络协议问答", layout="wide")
 st.title("基于 RAG 的网络协议知识问答")
-st.caption("先在`知识库管理`中建库，再在`问答`中提问。")
+st.caption("先在`原始文档处理`中准备和清洗文档，再在`知识库管理`中建库，最后到`问答`中提问。")
 
 with st.sidebar:
     st.header("运行控制台")
@@ -539,10 +713,13 @@ if test_api:
                 f"chat={status['chat_model']} | embedding={status['embedding_model']} | base_url={status['base_url']}"
             )
 
-tab_qa, tab_kb, tab_config = st.tabs(["问答", "知识库管理", "系统配置"])
+tab_qa, tab_raw_docs, tab_kb, tab_config = st.tabs(["问答", "原始文档处理", "知识库管理", "系统配置"])
 
 with tab_qa:
     _render_qa_tab(progress_placeholder, log_placeholder, perf_placeholder)
+
+with tab_raw_docs:
+    _render_raw_docs_tab()
 
 with tab_kb:
     _render_kb_tab()
