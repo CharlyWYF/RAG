@@ -36,13 +36,15 @@ pip install -r requirements.txt
 
 ## 2. 配置 API Key
 
-1. 复制模板并填写 key：
+1. 如果仓库中已提供模板文件，复制模板并填写 key：
 
 ```bash
 cp .env.example .env
 ```
 
-1. 编辑 `.env`，设置 `OPENAI_API_KEY=...`
+2. 如果仓库中暂未提供 `.env.example`，请手动创建 `.env`
+
+3. 编辑 `.env`，设置 `OPENAI_API_KEY=...`
 
 如果你使用第三方兼容 OpenAI 的 API 网关，再设置：
 
@@ -139,10 +141,11 @@ python -m src.ingest --mode append --chunk-strategy fixed
 
 ## 5. 网页端知识库管理（新增）
 
-页面现在分为两个标签：
+页面现在分为三个标签：
 
 - `问答`：原有提问与回答流程
 - `知识库管理`：管理原始文件并触发建库
+- `系统配置`：查看当前生效配置并编辑 `.env` 中的关键字段
 
 在“知识库管理”中你可以：
 
@@ -157,6 +160,8 @@ python -m src.ingest --mode append --chunk-strategy fixed
 - `sync`：让向量库与当前源文件保持一致（新增/更新/删除都会同步）
 - `rebuild`：会先删除旧向量库再重建
 - `append`：仅追加新增来源文件（按 `source` 去重，不处理更新和删除）
+
+当前仓库的正式知识库方向仍是“纯 RFC”。上述上传与建库能力支持通用 `.md`/`.txt` 文件处理，但在正式语料选择上，应优先遵循 `docs/rfc_scope.md` 与 `docs/rfc_cleaning_rules.md`。
 
 ## 6. 启动网页
 
