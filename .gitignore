@@ -7,10 +7,15 @@ __pycache__/
 .env
 
 # Vector store
-chroma_db/
+# chroma_db/
 
 # Streamlit
 .streamlit/
 
 # Claude
 .claude/
+
+# MacOS
+.DS_Store
+**/.DS_Store
+.DS_Store?
