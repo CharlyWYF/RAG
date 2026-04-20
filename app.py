@@ -2,6 +2,7 @@ from __future__ import annotations
 
 # streamlit_app_label: 问答页面
 
+from time import perf_counter
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -12,7 +13,8 @@ import streamlit as st
 from scripts.clean_protocol_docs import process_file
 from src.config import load_settings
 from src.ingest import build_index
-from src.qa import answer_question, health_check
+from src.qa import PROMPT_TEMPLATE, _join_context, build_llm, health_check
+from src.retriever import get_retriever
 
 ENV_PATH = Path(__file__).parent / ".env"
 EDITABLE_ENV_KEYS = [
@@ -76,8 +78,9 @@ def _stage_label(stage: str) -> str:
         "init_retriever": "初始化检索器",
         "retrieve": "向量检索",
         "init_llm": "初始化大模型客户端",
+        "first_token": "首字响应时间",
         "generate_answer": "生成回答",
-        "total": "端到端总耗时",
+        "total": "总耗时",
     }
     return labels.get(stage, stage)
 
@@ -184,8 +187,99 @@ def _render_qa_tab(
             status_text.info("答案生成中，请稍候...")
             progress_bar.progress(5)
 
+            timings: list[dict[str, Any]] = []
+            t0 = perf_counter()
+
             try:
-                result = answer_question(question.strip(), progress_callback=on_progress)
+                on_progress("开始加载配置...")
+                t1_start = perf_counter()
+                settings = load_settings()
+                t1_end = perf_counter()
+                timings.append({"stage": "load_settings", "seconds": t1_end - t1_start})
+
+                on_progress("正在初始化检索器...")
+                t2_start = perf_counter()
+                retriever = get_retriever()
+                t2_end = perf_counter()
+                timings.append({"stage": "init_retriever", "seconds": t2_end - t2_start})
+
+                on_progress("正在执行向量检索...")
+                t3_start = perf_counter()
+                docs = retriever.invoke(question.strip())
+                t3_end = perf_counter()
+                timings.append({"stage": "retrieve", "seconds": t3_end - t3_start})
+
+                context = _join_context(docs)
+                if not context.strip():
+                    total_seconds = perf_counter() - t0
+                    timings.append({"stage": "total", "seconds": total_seconds})
+                    result = {
+                        "answer": "资料不足以确定，请先补充相关协议文档。",
+                        "contexts": [],
+                        "sources": [],
+                        "timings": timings,
+                        "total_seconds": total_seconds,
+                        "logs": [
+                            "load_settings",
+                            "init_retriever",
+                            "retrieve",
+                            "no_context",
+                        ],
+                    }
+                else:
+                    on_progress("正在初始化大模型客户端...")
+                    t4_start = perf_counter()
+                    llm = build_llm(settings)
+                    t4_end = perf_counter()
+                    timings.append({"stage": "init_llm", "seconds": t4_end - t4_start})
+
+                    prompt = PROMPT_TEMPLATE.format(question=question.strip(), context=context)
+                    answer_container = st.container(border=True)
+                    with answer_container:
+                        st.markdown("### 最终回答")
+                        st.caption(f"问题：{question.strip()}")
+                        streamed_answer_placeholder = st.empty()
+
+                    on_progress("正在生成最终回答...")
+                    t5_start = perf_counter()
+                    first_token_seconds: float | None = None
+                    chunks: list[str] = []
+                    for chunk in llm.stream(prompt):
+                        chunk_text = getattr(chunk, "content", "")
+                        if isinstance(chunk_text, list):
+                            chunk_text = "".join(str(part) for part in chunk_text)
+                        if not chunk_text:
+                            continue
+                        if first_token_seconds is None:
+                            first_token_seconds = perf_counter() - t5_start
+                            with perf_placeholder.container():
+                                st.metric("首字响应时间", f"{first_token_seconds:.3f} 秒")
+                        chunks.append(str(chunk_text))
+                        streamed_answer_placeholder.write("".join(chunks))
+                    t5_end = perf_counter()
+                    if first_token_seconds is not None:
+                        timings.append({"stage": "first_token", "seconds": first_token_seconds})
+                    timings.append({"stage": "generate_answer", "seconds": t5_end - t5_start})
+
+                    total_seconds = perf_counter() - t0
+                    timings.append({"stage": "total", "seconds": total_seconds})
+
+                    result = {
+                        "answer": "".join(chunks),
+                        "contexts": [doc.page_content for doc in docs],
+                        "sources": [str(doc.metadata.get("source", "unknown")) for doc in docs],
+                        "timings": timings,
+                        "total_seconds": total_seconds,
+                        "logs": [
+                            "load_settings",
+                            "init_retriever",
+                            "retrieve",
+                            "init_llm",
+                            "first_token" if first_token_seconds is not None else "no_first_token",
+                            "generate_answer",
+                            "done",
+                        ],
+                    }
             except Exception as exc:
                 on_progress("执行失败。")
                 main_status.error(f"运行失败：{exc}")
@@ -197,6 +291,7 @@ def _render_qa_tab(
                 main_status.empty()
                 st.session_state["qa_last_question"] = question.strip()
                 st.session_state["qa_last_result"] = result
+                st.rerun()
 
     stored_question = str(st.session_state.get("qa_last_question", "")).strip()
     stored_result = st.session_state.get("qa_last_result")
@@ -206,9 +301,17 @@ def _render_qa_tab(
     timings = stored_result.get("timings", [])
     total_seconds = float(stored_result.get("total_seconds", 0.0))
     timing_rows = _format_timing_rows(timings)
+    first_token_seconds = next(
+        (
+            float(item.get("seconds", 0.0))
+            for item in timings
+            if str(item.get("stage", "")) == "first_token"
+        ),
+        0.0,
+    )
 
     with perf_placeholder.container():
-        st.metric("端到端总耗时", f"{total_seconds:.3f} 秒")
+        st.metric("首字响应时间", f"{first_token_seconds:.3f} 秒")
         if timing_rows:
             st.dataframe(timing_rows, use_container_width=True, hide_index=True)
 

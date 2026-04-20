@@ -28,7 +28,7 @@ def _join_context(docs: list[Any]) -> str:
     return "\n\n".join(doc.page_content for doc in docs)
 
 
-def _build_llm(settings):
+def build_llm(settings):
     llm_kwargs = {
         "model": settings.chat_model,
         "api_key": settings.openai_api_key,
@@ -111,15 +111,26 @@ def answer_question(
 
     report("正在初始化大模型客户端...")
     t4_start = perf_counter()
-    llm = _build_llm(settings)
+    llm = build_llm(settings)
     t4_end = perf_counter()
     timings.append({"stage": "init_llm", "seconds": t4_end - t4_start})
 
     report("正在生成最终回答...")
     prompt = PROMPT_TEMPLATE.format(question=question, context=context)
     t5_start = perf_counter()
-    result = llm.invoke(prompt)
+    first_token_seconds: float | None = None
+    chunks: list[str] = []
+    for chunk in llm.stream(prompt):
+        chunk_text = getattr(chunk, "content", "")
+        if isinstance(chunk_text, list):
+            chunk_text = "".join(str(part) for part in chunk_text)
+        if chunk_text:
+            if first_token_seconds is None:
+                first_token_seconds = perf_counter() - t5_start
+            chunks.append(str(chunk_text))
     t5_end = perf_counter()
+    if first_token_seconds is not None:
+        timings.append({"stage": "first_token", "seconds": first_token_seconds})
     timings.append({"stage": "generate_answer", "seconds": t5_end - t5_start})
 
     total_seconds = perf_counter() - t0
@@ -130,7 +141,7 @@ def answer_question(
 
     report("问答完成。")
     return {
-        "answer": result.content,
+        "answer": "".join(chunks),
         "contexts": contexts,
         "sources": sources,
         "timings": timings,
@@ -140,6 +151,7 @@ def answer_question(
             "init_retriever",
             "retrieve",
             "init_llm",
+            "first_token" if first_token_seconds is not None else "no_first_token",
             "generate_answer",
             "done",
         ],
