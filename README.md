@@ -202,3 +202,4 @@ streamlit run app.py
 - 若提示找不到向量库，请先运行 `python -m src.ingest`。
 - 若回答不理想，优先补充/改进文档质量。
 
+ 

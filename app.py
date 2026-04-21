@@ -30,6 +30,17 @@ EDITABLE_ENV_KEYS = [
 RAW_DOCS_DIR = Path(__file__).parent / "data" / "protocols" / "raw"
 CLEANED_DOCS_DIR = Path(__file__).parent / "data" / "protocols" / "cleaned"
 RAW_DOC_SUFFIXES = {".txt", ".md", ".html", ".htm"}
+QUERY_REWRITE_PROMPT = """你是检索查询优化助手。请将用户问题改写成一条更适合网络协议知识库检索的查询。
+
+要求：
+1. 保留原问题语义，不改变用户意图。
+2. 优先补齐协议名、术语名、字段名、流程名等检索关键词。
+3. 去口语化，但不要扩写成多句。
+4. 只输出一条改写后的查询，不要解释。
+
+用户问题：
+{question}
+"""
 
 
 def _read_env_file(env_path: Path) -> dict[str, str]:
@@ -75,6 +86,7 @@ def _write_env_file(env_path: Path, updates: dict[str, str]) -> None:
 def _stage_label(stage: str) -> str:
     labels = {
         "load_settings": "加载配置",
+        "rewrite_query": "查询改写",
         "init_retriever": "初始化检索器",
         "retrieve": "向量检索",
         "init_llm": "初始化大模型客户端",
@@ -200,6 +212,15 @@ def _render_qa_tab(
                 t1_end = perf_counter()
                 timings.append({"stage": "load_settings", "seconds": t1_end - t1_start})
 
+                on_progress("正在查询改写...")
+                t_rewrite_start = perf_counter()
+                rewrite_llm = build_llm(settings)
+                rewritten_query = rewrite_llm.invoke(
+                    QUERY_REWRITE_PROMPT.format(question=question.strip())
+                ).content.strip()
+                t_rewrite_end = perf_counter()
+                timings.append({"stage": "rewrite_query", "seconds": t_rewrite_end - t_rewrite_start})
+
                 on_progress("正在初始化检索器...")
                 t2_start = perf_counter()
                 retriever = get_retriever()
@@ -208,7 +229,17 @@ def _render_qa_tab(
 
                 on_progress("正在执行向量检索...")
                 t3_start = perf_counter()
-                docs = retriever.invoke(question.strip())
+                original_docs = retriever.invoke(question.strip())
+                rewritten_docs = retriever.invoke(rewritten_query) if rewritten_query else []
+                merged_docs: list[Any] = []
+                seen_sources: set[str] = set()
+                for doc in [*original_docs, *rewritten_docs]:
+                    source = str(getattr(doc, "metadata", {}).get("source", "unknown"))
+                    if source in seen_sources:
+                        continue
+                    seen_sources.add(source)
+                    merged_docs.append(doc)
+                docs = merged_docs
                 t3_end = perf_counter()
                 timings.append({"stage": "retrieve", "seconds": t3_end - t3_start})
 
@@ -220,10 +251,12 @@ def _render_qa_tab(
                         "answer": "资料不足以确定，请先补充相关协议文档。",
                         "contexts": [],
                         "sources": [],
+                        "rewritten_query": rewritten_query,
                         "timings": timings,
                         "total_seconds": total_seconds,
                         "logs": [
                             "load_settings",
+                            "rewrite_query",
                             "init_retriever",
                             "retrieve",
                             "no_context",
@@ -265,7 +298,7 @@ def _render_qa_tab(
                         timings.append({"stage": "generate_first_token", "seconds": first_token_seconds - sum(
                             float(item.get("seconds", 0.0))
                             for item in timings
-                            if str(item.get("stage", "")) in {"load_settings", "init_retriever", "retrieve", "init_llm"}
+                            if str(item.get("stage", "")) in {"load_settings", "rewrite_query", "init_retriever", "retrieve", "init_llm"}
                         )})
                     timings.append({"stage": "generate_answer", "seconds": t5_end - t5_start})
 
@@ -276,10 +309,12 @@ def _render_qa_tab(
                         "answer": "".join(chunks),
                         "contexts": [doc.page_content for doc in docs],
                         "sources": [str(doc.metadata.get("source", "unknown")) for doc in docs],
+                        "rewritten_query": rewritten_query,
                         "timings": timings,
                         "total_seconds": total_seconds,
                         "logs": [
                             "load_settings",
+                            "rewrite_query",
                             "init_retriever",
                             "retrieve",
                             "init_llm",
@@ -327,6 +362,12 @@ def _render_qa_tab(
         st.markdown("### 最终回答")
         st.caption(f"问题：{stored_question}")
         st.write(stored_result["answer"])
+
+    rewritten_query = str(stored_result.get("rewritten_query", "")).strip()
+    if rewritten_query:
+        with st.expander("查询改写", expanded=False):
+            st.caption(f"原问题：{stored_question}")
+            st.write(rewritten_query)
 
     contexts = stored_result.get("contexts", [])
     sources = stored_result.get("sources", [])
