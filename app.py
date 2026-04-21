@@ -25,18 +25,20 @@ EDITABLE_ENV_KEYS = [
     "TOP_K",
     "EMBEDDING_MODEL",
     "CHAT_MODEL",
+    "QUERY_REWRITE_MODEL",
     "OPENAI_BASE_URL",
 ]
 RAW_DOCS_DIR = Path(__file__).parent / "data" / "protocols" / "raw"
 CLEANED_DOCS_DIR = Path(__file__).parent / "data" / "protocols" / "cleaned"
 RAW_DOC_SUFFIXES = {".txt", ".md", ".html", ".htm"}
-QUERY_REWRITE_PROMPT = """你是检索查询优化助手。请将用户问题改写成一条更适合网络协议知识库检索的查询。
+QUERY_REWRITE_PROMPT = """你是检索查询优化助手。请根据用户问题生成 2 条彼此互补、适合网络协议知识库检索的子查询。
 
 要求：
 1. 保留原问题语义，不改变用户意图。
 2. 优先补齐协议名、术语名、字段名、流程名等检索关键词。
-3. 去口语化，但不要扩写成多句。
-4. 只输出一条改写后的查询，不要解释。
+3. 两条子查询应尽量覆盖不同角度或者不同网络协议，但都必须与原问题高度相关。
+4. 去口语化，但不要扩写成多句解释。
+5. 只输出 2 行，每行 1 条子查询，不要加编号，不要解释。
 
 用户问题：
 {question}
@@ -214,10 +216,15 @@ def _render_qa_tab(
 
                 on_progress("正在查询改写...")
                 t_rewrite_start = perf_counter()
-                rewrite_llm = build_llm(settings)
-                rewritten_query = rewrite_llm.invoke(
+                rewrite_llm = build_llm(settings, model_override=settings.query_rewrite_model)
+                rewritten_raw = rewrite_llm.invoke(
                     QUERY_REWRITE_PROMPT.format(question=question.strip())
                 ).content.strip()
+                rewritten_queries = list(dict.fromkeys(
+                    line.strip()
+                    for line in rewritten_raw.splitlines()
+                    if line.strip()
+                ))[:2]
                 t_rewrite_end = perf_counter()
                 timings.append({"stage": "rewrite_query", "seconds": t_rewrite_end - t_rewrite_start})
 
@@ -229,16 +236,19 @@ def _render_qa_tab(
 
                 on_progress("正在执行向量检索...")
                 t3_start = perf_counter()
-                original_docs = retriever.invoke(question.strip())
-                rewritten_docs = retriever.invoke(rewritten_query) if rewritten_query else []
+                retrieval_queries = [question.strip(), *rewritten_queries]
                 merged_docs: list[Any] = []
-                seen_sources: set[str] = set()
-                for doc in [*original_docs, *rewritten_docs]:
-                    source = str(getattr(doc, "metadata", {}).get("source", "unknown"))
-                    if source in seen_sources:
-                        continue
-                    seen_sources.add(source)
-                    merged_docs.append(doc)
+                seen_chunks: set[tuple[str, str]] = set()
+                for retrieval_query in retrieval_queries:
+                    query_docs = retriever.invoke(retrieval_query)
+                    for doc in query_docs:
+                        source = str(getattr(doc, "metadata", {}).get("source", "unknown"))
+                        content = str(getattr(doc, "page_content", ""))
+                        chunk_key = (source, content)
+                        if chunk_key in seen_chunks:
+                            continue
+                        seen_chunks.add(chunk_key)
+                        merged_docs.append(doc)
                 docs = merged_docs
                 t3_end = perf_counter()
                 timings.append({"stage": "retrieve", "seconds": t3_end - t3_start})
@@ -251,7 +261,7 @@ def _render_qa_tab(
                         "answer": "资料不足以确定，请先补充相关协议文档。",
                         "contexts": [],
                         "sources": [],
-                        "rewritten_query": rewritten_query,
+                        "rewritten_queries": rewritten_queries,
                         "timings": timings,
                         "total_seconds": total_seconds,
                         "logs": [
@@ -309,7 +319,7 @@ def _render_qa_tab(
                         "answer": "".join(chunks),
                         "contexts": [doc.page_content for doc in docs],
                         "sources": [str(doc.metadata.get("source", "unknown")) for doc in docs],
-                        "rewritten_query": rewritten_query,
+                        "rewritten_queries": rewritten_queries,
                         "timings": timings,
                         "total_seconds": total_seconds,
                         "logs": [
@@ -363,11 +373,12 @@ def _render_qa_tab(
         st.caption(f"问题：{stored_question}")
         st.write(stored_result["answer"])
 
-    rewritten_query = str(stored_result.get("rewritten_query", "")).strip()
-    if rewritten_query:
+    rewritten_queries = stored_result.get("rewritten_queries", [])
+    if isinstance(rewritten_queries, list) and rewritten_queries:
         with st.expander("查询改写", expanded=False):
             st.caption(f"原问题：{stored_question}")
-            st.write(rewritten_query)
+            for idx, query in enumerate(rewritten_queries, start=1):
+                st.write(f"{idx}. {query}")
 
     contexts = stored_result.get("contexts", [])
     sources = stored_result.get("sources", [])
@@ -809,6 +820,7 @@ def _render_config_tab() -> None:
             {"配置项": "TOP_K", "当前值": settings.top_k},
             {"配置项": "EMBEDDING_MODEL", "当前值": settings.embedding_model},
             {"配置项": "CHAT_MODEL", "当前值": settings.chat_model},
+            {"配置项": "QUERY_REWRITE_MODEL", "当前值": settings.query_rewrite_model},
             {"配置项": "OPENAI_BASE_URL", "当前值": settings.openai_base_url or "(未设置)"},
             {"配置项": "OPENAI_API_KEY", "当前值": "已配置" if settings.openai_api_key else "未配置"},
         ]
@@ -840,6 +852,10 @@ def _render_config_tab() -> None:
             "CHAT_MODEL",
             value=env_values.get("CHAT_MODEL", "gpt-4o-mini"),
         )
+        query_rewrite_model = st.text_input(
+            "QUERY_REWRITE_MODEL",
+            value=env_values.get("QUERY_REWRITE_MODEL", "gpt-4o-mini"),
+        )
         openai_base_url = st.text_input(
             "OPENAI_BASE_URL",
             value=env_values.get("OPENAI_BASE_URL", ""),
@@ -863,6 +879,7 @@ def _render_config_tab() -> None:
             "TOP_K": top_k.strip(),
             "EMBEDDING_MODEL": embedding_model.strip(),
             "CHAT_MODEL": chat_model.strip(),
+            "QUERY_REWRITE_MODEL": query_rewrite_model.strip(),
             "OPENAI_BASE_URL": openai_base_url.strip(),
             "OPENAI_API_KEY": openai_api_key.strip(),
         }

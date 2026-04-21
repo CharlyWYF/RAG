@@ -28,9 +28,9 @@ def _join_context(docs: list[Any]) -> str:
     return "\n\n".join(doc.page_content for doc in docs)
 
 
-def build_llm(settings):
+def build_llm(settings, model_override: str | None = None):
     llm_kwargs = {
-        "model": settings.chat_model,
+        "model": model_override or settings.chat_model,
         "api_key": settings.openai_api_key,
     }
     if settings.openai_base_url:

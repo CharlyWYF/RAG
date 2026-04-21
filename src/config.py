@@ -12,6 +12,7 @@ class Settings:
     openai_base_url: str
     embedding_model: str
     chat_model: str
+    query_rewrite_model: str
     chunk_size: int
     chunk_overlap: int
     top_k: int
@@ -40,6 +41,7 @@ def load_settings() -> Settings:
         openai_base_url=os.getenv("OPENAI_BASE_URL", "").strip(),
         embedding_model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
         chat_model=os.getenv("CHAT_MODEL", "gpt-4o-mini"),
+        query_rewrite_model=os.getenv("QUERY_REWRITE_MODEL", "gpt-4o-mini"),
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
         top_k=top_k,

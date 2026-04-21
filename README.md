@@ -12,7 +12,7 @@
 
 当前项目采用“纯 RFC”路线，知识库仅使用 RFC 标准文档，不引入教程型资料作为正式语料。
 
-当前推荐的分阶段范围如下：
+当前分阶段范围如下：
 
 - 第一批核心协议：`TCP`、`DNS`、`HTTP`
 - 第二批补充协议：`IP`、`UDP`
@@ -46,9 +46,10 @@ cp .env.example .env
 
 3. 编辑 `.env`，设置 `OPENAI_API_KEY=...`
 
-如果你使用第三方兼容 OpenAI 的 API 网关，再设置：
+可选但支持：
 
 - `OPENAI_BASE_URL=https://your-gateway.example.com/v1`
+- `QUERY_REWRITE_MODEL` 用于控制查询改写阶段所使用的模型
 
 ## 3. 准备知识库
 
