@@ -79,6 +79,7 @@ def _stage_label(stage: str) -> str:
         "retrieve": "向量检索",
         "init_llm": "初始化大模型客户端",
         "first_token": "首字响应时间",
+        "generate_first_token": "生成首字耗时",
         "generate_answer": "生成回答",
         "total": "总耗时",
     }
@@ -89,6 +90,8 @@ def _format_timing_rows(timings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for item in timings:
         stage = str(item.get("stage", "unknown"))
+        if stage == "first_token":
+            continue
         seconds = float(item.get("seconds", 0.0))
         rows.append({"阶段": _stage_label(stage), "耗时(秒)": round(seconds, 3)})
     return rows
@@ -251,7 +254,7 @@ def _render_qa_tab(
                         if not chunk_text:
                             continue
                         if first_token_seconds is None:
-                            first_token_seconds = perf_counter() - t5_start
+                            first_token_seconds = perf_counter() - t0
                             with perf_placeholder.container():
                                 st.metric("首字响应时间", f"{first_token_seconds:.3f} 秒")
                         chunks.append(str(chunk_text))
@@ -259,6 +262,11 @@ def _render_qa_tab(
                     t5_end = perf_counter()
                     if first_token_seconds is not None:
                         timings.append({"stage": "first_token", "seconds": first_token_seconds})
+                        timings.append({"stage": "generate_first_token", "seconds": first_token_seconds - sum(
+                            float(item.get("seconds", 0.0))
+                            for item in timings
+                            if str(item.get("stage", "")) in {"load_settings", "init_retriever", "retrieve", "init_llm"}
+                        )})
                     timings.append({"stage": "generate_answer", "seconds": t5_end - t5_start})
 
                     total_seconds = perf_counter() - t0
