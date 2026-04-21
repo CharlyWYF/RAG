@@ -28,7 +28,7 @@ def _join_context(docs: list[Any]) -> str:
     return "\n\n".join(doc.page_content for doc in docs)
 
 
-def _build_llm(settings, model_override: str | None = None):
+def build_llm(settings, model_override: str | None = None):
     llm_kwargs = {
         "model": model_override or settings.chat_model,
         "api_key": settings.openai_api_key,
@@ -51,7 +51,7 @@ def _build_embeddings(settings):
 def health_check() -> dict[str, str]:
     settings = load_settings()
 
-    _build_llm(settings).invoke("请只回复: OK")
+    build_llm(settings).invoke("请只回复: OK")
     _build_embeddings(settings).embed_query("network protocol health check")
 
     return {
@@ -111,7 +111,7 @@ def answer_question(
 
     report("正在初始化大模型客户端...")
     t4_start = perf_counter()
-    llm = _build_llm(settings)
+    llm = build_llm(settings)
     t4_end = perf_counter()
     timings.append({"stage": "init_llm", "seconds": t4_end - t4_start})
 
