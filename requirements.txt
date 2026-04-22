@@ -4,6 +4,4 @@ langchain-openai
 langchain-community
 langchain-chroma
 langchain-text-splitters
-chromadb
 python-dotenv
-tiktoken
