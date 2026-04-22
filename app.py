@@ -166,7 +166,7 @@ def _render_qa_tab(
     st.subheader("提问")
     with st.form("qa_form", clear_on_submit=False):
         question = st.text_input("请输入你的问题", placeholder="例如：TCP 三次握手是什么？")
-        ask = st.form_submit_button("开始问答", type="primary", use_container_width=True)
+        ask = st.form_submit_button("开始问答", type="primary", width="stretch")
 
     main_status = st.empty()
 
@@ -366,7 +366,7 @@ def _render_qa_tab(
     with perf_placeholder.container():
         st.metric("首字响应时间", f"{first_token_seconds:.3f} 秒")
         if timing_rows:
-            st.dataframe(timing_rows, use_container_width=True, hide_index=True)
+            st.dataframe(timing_rows, width="stretch", hide_index=True)
 
     with st.container(border=True):
         st.markdown("### 最终回答")
@@ -403,7 +403,7 @@ def _render_qa_tab(
                         if resolved_source is not None:
                             st.caption(f"解析路径：{resolved_source}")
                     with action_col:
-                        st.link_button("预览", preview_url, use_container_width=True)
+                        st.link_button("预览", preview_url, width="stretch")
                 else:
                     st.caption(f"来源：{source_name}")
                 st.write(ctx)
@@ -485,7 +485,7 @@ def _render_raw_docs_tab() -> None:
         value=False,
         key=f"raw_docs_overwrite_{uploader_version}",
     )
-    if st.button("保存到 raw 目录", use_container_width=True, key="save_raw_doc"):
+    if st.button("保存到 raw 目录", width="stretch", key="save_raw_doc"):
         if upload_file is None:
             upload_status_placeholder.warning("请先选择文件。")
         else:
@@ -525,7 +525,7 @@ def _render_raw_docs_tab() -> None:
 
         with st.container(border=True):
             st.caption("文件列表")
-            st.dataframe(rows, use_container_width=True, hide_index=True)
+            st.dataframe(rows, width="stretch", hide_index=True)
 
         options = [str(doc.relative_to(raw_dir)) for doc in docs]
         with st.container(border=True):
@@ -549,7 +549,7 @@ def _render_raw_docs_tab() -> None:
                         status_placeholder.success(message_text)
             if should_show_existing_info:
                 st.info(f"该文件已存在清洗结果，将重新生成：{cleaned_target}")
-            if st.button("开始清洗所选文件", type="primary", use_container_width=True, key="process_single_raw"):
+            if st.button("开始清洗所选文件", type="primary", width="stretch", key="process_single_raw"):
                 try:
                     with st.spinner(f"正在清洗：{selected_raw}"):
                         target = process_file(selected_path, raw_dir, cleaned_dir)
@@ -643,7 +643,7 @@ def _render_kb_tab() -> None:
             accept_multiple_files=False,
         )
         overwrite_upload = st.checkbox("允许覆盖同名文件", value=False)
-        if st.button("保存上传文件", use_container_width=True):
+        if st.button("保存上传文件", width="stretch"):
             if upload_file is None:
                 st.warning("请先选择文件。")
             else:
@@ -672,7 +672,7 @@ def _render_kb_tab() -> None:
 
             with st.container(border=True):
                 st.caption("文件列表")
-                st.dataframe(rows, use_container_width=True, hide_index=True)
+                st.dataframe(rows, width="stretch", hide_index=True)
 
             with st.container(border=True):
                 st.caption("删除文件")
@@ -681,7 +681,7 @@ def _render_kb_tab() -> None:
                     options=[str(doc.relative_to(data_dir)) for doc in docs],
                 )
                 confirm_delete = st.checkbox("我确认删除该文件")
-                if st.button("删除所选文件", use_container_width=True):
+                if st.button("删除所选文件", width="stretch"):
                     if not confirm_delete:
                         st.warning("请先勾选删除确认。")
                     else:
@@ -714,7 +714,7 @@ def _render_kb_tab() -> None:
     if chunk_strategy == "hybrid":
         st.info("hybrid 通常更适合清洗后的 RFC 文档，可兼顾结构信息与 chunk 长度控制。")
 
-    if st.button("开始构建向量库", type="primary", use_container_width=True):
+    if st.button("开始构建向量库", type="primary", width="stretch"):
         build_progress_bar = st.progress(0, text="等待开始...")
         build_progress_placeholder = st.empty()
         build_log_placeholder = st.empty()
@@ -813,18 +813,18 @@ def _render_config_tab() -> None:
     st.markdown("### 当前生效配置")
     if settings is not None:
         effective_rows = [
-            {"配置项": "DATA_DIR", "当前值": settings.data_dir},
-            {"配置项": "CHROMA_DIR", "当前值": settings.chroma_dir},
-            {"配置项": "CHUNK_SIZE", "当前值": settings.chunk_size},
-            {"配置项": "CHUNK_OVERLAP", "当前值": settings.chunk_overlap},
-            {"配置项": "TOP_K", "当前值": settings.top_k},
-            {"配置项": "EMBEDDING_MODEL", "当前值": settings.embedding_model},
-            {"配置项": "CHAT_MODEL", "当前值": settings.chat_model},
-            {"配置项": "QUERY_REWRITE_MODEL", "当前值": settings.query_rewrite_model},
-            {"配置项": "OPENAI_BASE_URL", "当前值": settings.openai_base_url or "(未设置)"},
+            {"配置项": "DATA_DIR", "当前值": str(settings.data_dir)},
+            {"配置项": "CHROMA_DIR", "当前值": str(settings.chroma_dir)},
+            {"配置项": "CHUNK_SIZE", "当前值": str(settings.chunk_size)},
+            {"配置项": "CHUNK_OVERLAP", "当前值": str(settings.chunk_overlap)},
+            {"配置项": "TOP_K", "当前值": str(settings.top_k)},
+            {"配置项": "EMBEDDING_MODEL", "当前值": str(settings.embedding_model)},
+            {"配置项": "CHAT_MODEL", "当前值": str(settings.chat_model)},
+            {"配置项": "QUERY_REWRITE_MODEL", "当前值": str(settings.query_rewrite_model)},
+            {"配置项": "OPENAI_BASE_URL", "当前值": str(settings.openai_base_url or "(未设置)")},
             {"配置项": "OPENAI_API_KEY", "当前值": "已配置" if settings.openai_api_key else "未配置"},
         ]
-        st.dataframe(effective_rows, use_container_width=True, hide_index=True)
+        st.dataframe(effective_rows, width="stretch", hide_index=True)
     else:
         st.info("当前无法完整加载生效配置，请先检查 `.env`。")
 
@@ -868,7 +868,7 @@ def _render_config_tab() -> None:
             placeholder="请输入 API Key",
         )
 
-        submit = st.form_submit_button("保存配置并刷新页面", type="primary", use_container_width=True)
+        submit = st.form_submit_button("保存配置并刷新页面", type="primary", width="stretch")
 
     if submit:
         updates = {
@@ -902,7 +902,7 @@ with st.sidebar:
     st.header("运行控制台")
     st.caption("API 状态、执行进度、日志和耗时信息")
 
-    test_api = st.button("测试 API 连通性", use_container_width=True)
+    test_api = st.button("测试 API 连通性", width="stretch")
     api_status_placeholder = st.empty()
     api_detail_placeholder = st.empty()
 
