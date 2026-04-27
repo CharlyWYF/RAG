@@ -894,8 +894,8 @@ def _render_config_tab() -> None:
             st.info("当前不存在 `.env` 文件。")
 
 
-st.set_page_config(page_title="RAG 网络协议问答", layout="wide")
-st.title("基于 RAG 的网络协议知识问答")
+st.set_page_config(page_title="网络协议问答", layout="wide")
+st.title("基于 LLM 的网络协议知识问答")
 st.caption("先在`文档处理`中准备和清洗文档，再在`知识库管理`中建库，最后到`问答`中提问。")
 
 with st.sidebar:
