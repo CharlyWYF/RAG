@@ -37,7 +37,8 @@ SKIP_LINE_PATTERNS = [
 
 TOC_DOTTED_LINE_RE = re.compile(r"^\s*\d+(?:\.\d+)*\.?\s+.+?\.{2,}\s*\d+\s*$")
 TOC_PAGED_LINE_RE = re.compile(r"^\s*(?:\d+(?:\.\d+)*\.?\s+)?[A-Z][A-Z0-9 /,()'\-]+\s+\d+\s*$")
-SECTION_HEADER_RE = re.compile(r"^\s*(\d+(?:\.\d+)+|\d+\.)(?:\.)?[ \t]+([A-Za-z].*?)\s*$")
+TOC_NUMBERED_ENTRY_RE = re.compile(r"^\s*(?:Appendix\s+[A-Z]\.\s+|\d+(?:\.\d+)*\.?)\s+.+\s*$")
+SECTION_HEADER_RE = re.compile(r"^\s*((?:Appendix\s+[A-Z]\.|\d+(?:\.\d+)*\.?))(?:\.)?[ \t]+([A-Za-z].*?)\s*$")
 ICMP_ENUM_RE = re.compile(r"^\s*\d+\s*=\s+.+")
 BIT_LABEL_RE = re.compile(r"^\s*\d+(?:\s+\d+)+\s*$")
 ASCII_ART_RE = re.compile(r"^[|+\-]+$")
@@ -50,6 +51,7 @@ HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 TRAILING_SECTIONS = [
     re.compile(r"^\s*References\s*$", re.IGNORECASE),
     re.compile(r"^\s*Acknowledgements\s*$", re.IGNORECASE),
+    re.compile(r"^\s*Acknowledgments\s*$", re.IGNORECASE),
     re.compile(r"^\s*Author'?s Address(?:es)?\s*$", re.IGNORECASE),
     re.compile(r"^\s*Authors'? Addresses\s*$", re.IGNORECASE),
 ]
@@ -106,8 +108,65 @@ def _normalize_lines(text: str, suffix: str = "") -> list[str]:
     return lines
 
 
+def _looks_like_numbered_toc_entry(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if stripped.lower().startswith("table of contents"):
+        return False
+    if re.match(r"^(?:Appendix\s+[A-Z]\.\s+|\d+(?:\.\d+)*\.?)\s+.+$", stripped) is None:
+        return False
+    if stripped.endswith(":"):
+        return False
+    if re.match(r"^\d+\s+[A-Z][a-z]{2}\s+\d{4}$", stripped):
+        return False
+    return True
+
+
+def _count_leading_numbered_toc_block(lines: list[str]) -> int:
+    count = 0
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            if count:
+                break
+            continue
+        if _looks_like_numbered_toc_entry(stripped):
+            count += 1
+            continue
+        if count:
+            break
+    return count
+
+
+def _is_toc_tail_line(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if _looks_like_numbered_toc_entry(stripped):
+        return True
+    return bool(
+        re.match(
+            r"^(?:Appendix\s+[A-Z]\.\s+.*|[A-Z]\.\d+(?:\.\d+)*\.\s+.*|Acknowledg(?:e)?ments|Author'?s Address(?:es)?|Full Copyright Statement|Index|Contributors|Resources)$",
+            stripped,
+            re.IGNORECASE,
+        )
+    )
+
+
 def _is_toc_line(line: str) -> bool:
     return bool(TOC_DOTTED_LINE_RE.match(line) or TOC_PAGED_LINE_RE.match(line))
+
+
+def _looks_like_numbered_toc_entry(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if stripped.lower().startswith("table of contents"):
+        return False
+    if re.match(r"^(?:Appendix\s+[A-Z]\.\s+|\d+(?:\.\d+)*\.?)\s+.+$", stripped) is None:
+        return False
+    return not stripped.endswith(":")
 
 
 def _is_section_header(line: str, protocol: str) -> bool:
@@ -121,9 +180,10 @@ def _is_section_header(line: str, protocol: str) -> bool:
         return False
 
     section_id, title = match.groups()
+    normalized_title = title.strip()
 
     if protocol == "http":
-        title_lower = title.strip().lower()
+        title_lower = normalized_title.lower()
         if title_lower.startswith((
             "initialize ",
             "compute ",
@@ -135,14 +195,17 @@ def _is_section_header(line: str, protocol: str) -> bool:
             "transmit ",
         )):
             return False
-        if title.strip().endswith(":"):
+        if normalized_title.endswith(":"):
             return False
 
-    if protocol != "dns" and re.match(r"^\d+\.$", section_id):
-        words = title.split()
-        if len(words) > 4:
+    if section_id.lower().startswith("appendix"):
+        return True
+
+    if protocol != "dns" and re.match(r"^\d+\.?$", section_id):
+        words = normalized_title.split()
+        if len(words) > 6:
             return False
-        if title.endswith("."):
+        if normalized_title.endswith("."):
             return False
 
     return True
@@ -162,53 +225,67 @@ def _has_numbered_structure(lines: list[str], protocol: str) -> bool:
 
 
 def _strip_table_of_contents(lines: list[str], protocol: str) -> list[str]:
-    if protocol == "dns":
-        result: list[str] = []
-        in_toc = False
+    leading_toc_count = _count_leading_numbered_toc_block(lines)
+    if leading_toc_count >= 3:
+        trimmed: list[str] = []
+        skipped = 0
         for line in lines:
-            lower = line.lower()
-            if lower == "table of contents":
-                in_toc = True
-                continue
-            if in_toc:
-                if not line:
+            stripped = line.strip()
+            if skipped < leading_toc_count:
+                if not stripped:
                     continue
-                if _is_toc_line(line):
+                if _looks_like_numbered_toc_entry(stripped):
+                    skipped += 1
                     continue
-                if line == "2. INTRODUCTION":
-                    in_toc = False
-                    result.append(line)
-                    continue
-                continue
-            result.append(line)
-        return result
+            trimmed.append(line)
+        lines = trimmed
 
     result: list[str] = []
     in_toc = False
     toc_started = False
+    numbered_toc_hits = 0
 
     for line in lines:
-        lower = line.lower()
+        stripped = line.strip()
+        lower = stripped.lower()
+
         if lower in {"table of contents", "contents"}:
             in_toc = True
             toc_started = True
+            numbered_toc_hits = 0
             continue
 
         if not toc_started and _is_toc_line(line):
             in_toc = True
             toc_started = True
+            numbered_toc_hits = 0
             continue
 
-        if in_toc:
-            if not line:
+        if not toc_started and _looks_like_numbered_toc_entry(stripped):
+            numbered_toc_hits += 1
+            if numbered_toc_hits >= 3:
+                in_toc = True
+                toc_started = True
                 continue
-            if _is_toc_line(line):
+        elif not toc_started and stripped:
+            numbered_toc_hits = 0
+
+        if in_toc:
+            if not stripped:
+                continue
+            if _is_toc_line(line) or _looks_like_numbered_toc_entry(stripped):
+                continue
+            if _is_toc_tail_line(stripped):
                 continue
             if _is_section_header(line, protocol):
                 in_toc = False
                 result.append(line)
                 continue
-            if re.match(r"^[A-Za-z].*", line) and not _is_toc_line(line):
+            if protocol == "dns" and stripped == "2. INTRODUCTION":
+                in_toc = False
+                result.append(line)
+                continue
+            if re.match(r"^[A-Za-z].*", stripped) and not _is_toc_line(line):
                 in_toc = False
                 result.append(line)
                 continue
@@ -216,11 +293,25 @@ def _strip_table_of_contents(lines: list[str], protocol: str) -> list[str]:
 
         result.append(line)
 
+    while result:
+        stripped = result[0].strip()
+        if _is_toc_tail_line(stripped):
+            result.pop(0)
+            continue
+        if protocol == "dns" and not re.match(r"^(?:1\.?\s+Introduction|1\s+-\s+Terminology|1\.?\s+Terminology|2\.?\s+Introduction)$", stripped, re.IGNORECASE):
+            if ". ." in stripped or re.match(r"^[A-Z]\.\d", stripped) or re.match(r"^\d+(?:\.\d+)*\.\s+.*\d+$", stripped):
+                result.pop(0)
+                continue
+        break
+
     return result
 
 
 def _trim_trailing_sections(lines: list[str]) -> list[str]:
+    min_index = max(5, len(lines) // 5)
     for index, line in enumerate(lines):
+        if index < min_index:
+            continue
         plain_line = line.lstrip("# ").strip()
         if any(pattern.match(plain_line) for pattern in TRAILING_SECTIONS):
             return lines[:index]
@@ -228,31 +319,37 @@ def _trim_trailing_sections(lines: list[str]) -> list[str]:
 
 
 def _drop_front_matter(lines: list[str], numbered_mode: bool, protocol: str) -> list[str]:
+    preferred_starts = []
     if protocol == "dns":
-        for index, line in enumerate(lines):
-            if line == "2. INTRODUCTION":
-                return lines[index:]
-        return lines
+        preferred_starts = [
+            "1. introduction",
+            "1 introduction",
+            "1 - terminology",
+            "1 terminology",
+            "2. introduction",
+            "2 introduction",
+        ]
+    elif protocol == "arp":
+        preferred_starts = ["notes:", "introduction"]
+    elif protocol == "icmp":
+        preferred_starts = ["introduction"]
+    else:
+        preferred_starts = [
+            "1. introduction",
+            "1 introduction",
+            "1. purpose and scope",
+            "1 purpose and scope",
+            "2. introduction",
+            "2 introduction",
+        ]
 
-    if protocol == "icmp":
-        for index, line in enumerate(lines):
-            if line == "Introduction":
-                return lines[index:]
-        return lines
-
-    if protocol == "http":
-        for index, line in enumerate(lines):
-            normalized = line.strip().lower()
-            if normalized in {
-                "1 introduction",
-                "1. introduction",
-                "1 introduction.",
-                "1. introduction.",
-            }:
-                return lines[index:]
+    for index, line in enumerate(lines):
+        normalized = line.strip().lower()
+        if normalized in preferred_starts:
+            return lines[index:]
 
     if numbered_mode:
-        start_index: int | None = None
+        first_numbered_index: int | None = None
         for index, line in enumerate(lines):
             if _is_toc_line(line):
                 continue
@@ -260,20 +357,21 @@ def _drop_front_matter(lines: list[str], numbered_mode: bool, protocol: str) -> 
                 continue
             match = SECTION_HEADER_RE.match(line)
             assert match is not None
-            section_id = match.group(1)
-            if section_id in {"1.", "2.", "1", "2"}:
-                start_index = index
-                break
-            if start_index is None:
-                start_index = index
-        if start_index is None:
-            return lines
-        return lines[start_index:]
+            section_id = match.group(1).rstrip(".").lower()
+            if section_id in {"1", "2"}:
+                return lines[index:]
+            if section_id.startswith("appendix"):
+                continue
+            if first_numbered_index is None:
+                first_numbered_index = index
+        if first_numbered_index is not None:
+            return lines[first_numbered_index:]
+        return lines
 
     for index, line in enumerate(lines):
         if not line:
             continue
-        if line.lower() in {"introduction", "message formats", "overview"}:
+        if line.lower() in {"introduction", "message formats", "overview", "notes:"}:
             return lines[index:]
     return lines
 
@@ -287,7 +385,8 @@ def _promote_markdown_headers(lines: list[str], numbered_mode: bool, protocol: s
 
         if index + 1 < len(lines) and UNDERLINE_HEADER_RE.match(lines[index + 1].strip()):
             if line and not _is_toc_line(line) and not ICMP_ENUM_RE.match(line):
-                promoted.append(f"# {line.strip()}")
+                level = "##" if protocol == "arp" else "#"
+                promoted.append(f"{level} {line.strip()}")
                 index += 2
                 continue
 
@@ -322,9 +421,16 @@ def _promote_markdown_headers(lines: list[str], numbered_mode: bool, protocol: s
             assert match is not None
             section_id, title = match.groups()
             normalized_section_id = section_id.rstrip(".")
+            normalized_title = title.strip()
+            if normalized_title.isupper():
+                normalized_title = normalized_title.title()
+            if normalized_section_id.lower().startswith("appendix"):
+                promoted.append(f"# {normalized_section_id} {normalized_title}")
+                index += 1
+                continue
             level = min(normalized_section_id.count(".") + 1, 6)
             hashes = "#" * level
-            promoted.append(f"{hashes} {normalized_section_id} {title.strip()}")
+            promoted.append(f"{hashes} {normalized_section_id} {normalized_title}")
             index += 1
             continue
 
@@ -350,17 +456,65 @@ def _dedupe_promoted_lines(lines: list[str]) -> list[str]:
 
     while index < len(lines):
         line = lines[index]
-        if (
-            line
-            and index + 1 < len(lines)
-            and lines[index + 1] == f"# {line}"
-        ):
+        if line and index + 1 < len(lines) and lines[index + 1] == f"# {line}":
             index += 1
             continue
         deduped.append(line)
         index += 1
 
     return deduped
+
+
+def _clean_leading_noise(lines: list[str], protocol: str) -> list[str]:
+    cleaned = list(lines)
+
+    while cleaned:
+        stripped = cleaned[0].strip()
+        if not stripped:
+            cleaned.pop(0)
+            continue
+        if stripped in {"Authors' Addresses", "Author's Address", "Contributors", "Index", "Resources"}:
+            cleaned.pop(0)
+            continue
+        break
+
+    if protocol == "dns":
+        normalized: list[str] = []
+        for line in cleaned:
+            if "Sections # " in line:
+                normalized.append(line.replace("Sections # ", "Sections ", 1))
+                continue
+            normalized.append(line)
+        cleaned = normalized
+
+        if cleaned:
+            first = cleaned[0].strip()
+            if first.startswith('The key words "MUST"'):
+                cleaned.insert(0, "# 1 Terminology")
+            elif first.startswith("This document introduces the Domain Name System Security Extensions"):
+                cleaned.insert(0, "# 1 Introduction")
+            elif first.startswith("The DNS Security Extensions (DNSSEC) introduce four new DNS resource"):
+                cleaned.insert(0, "# 1 Introduction")
+            elif first.startswith("The DNS Security Extensions (DNSSEC) are a collection of new resource"):
+                cleaned.insert(0, "# 1 Introduction")
+
+        return cleaned
+
+    if cleaned and not cleaned[0].startswith("# "):
+        first = cleaned[0].strip()
+        if len(cleaned) > 1 and cleaned[1].startswith("## 1.1"):
+            cleaned.insert(0, "# 1 Introduction")
+        elif first.startswith((
+            "The ",
+            "This ",
+            "HTTP ",
+            "IP ",
+            "Increasingly, ",
+            "When ",
+        )):
+            cleaned.insert(0, "# 1 Introduction")
+
+    return cleaned
 
 
 def clean_text(text: str, suffix: str = "", protocol: str = "unknown") -> str:
@@ -371,6 +525,7 @@ def clean_text(text: str, suffix: str = "", protocol: str = "unknown") -> str:
     lines = _promote_markdown_headers(lines, numbered_mode, protocol)
     lines = _dedupe_promoted_lines(lines)
     lines = _trim_trailing_sections(lines)
+    lines = _clean_leading_noise(lines, protocol)
 
     cleaned = "\n".join(lines)
     cleaned = MULTI_BLANK_RE.sub("\n\n", cleaned)
@@ -408,43 +563,35 @@ def _iter_source_files(raw_dir: Path) -> list[Path]:
     for path in raw_dir.rglob("*"):
         if not path.is_file():
             continue
-        if any(part.lower() in EXCLUDED_DIR_NAMES for part in path.parts):
+        if any(part in EXCLUDED_DIR_NAMES for part in path.parts):
             continue
         if path.suffix.lower() not in {".txt", ".md", ".html", ".htm"}:
             continue
         files.append(path)
+    files.sort(key=lambda p: str(p))
     return files
 
 
-def main() -> None:
-    import argparse
-
-    parser = argparse.ArgumentParser(description="清洗 RFC 协议文档")
-    parser.add_argument("--raw-dir", type=Path, default=RAW_DIR, help="原始资料目录")
-    parser.add_argument("--output-dir", type=Path, default=CLEAN_DIR, help="清洗输出目录")
-    args = parser.parse_args()
-
-    raw_dir = args.raw_dir
-    output_dir = args.output_dir
-
-    if not raw_dir.exists():
-        raise FileNotFoundError(f"原始目录不存在: {raw_dir}")
-
-    files = _iter_source_files(raw_dir)
-    if not files:
-        raise ValueError(f"原始目录下没有可处理文件: {raw_dir}")
+def main(raw_dir: Path = RAW_DIR, output_dir: Path = CLEAN_DIR) -> None:
+    source_files = _iter_source_files(raw_dir)
 
     print("=" * 60)
     print("RFC 协议文档轻量清洗")
     print("=" * 60)
     print(f"原始目录: {raw_dir}")
     print(f"输出目录: {output_dir}")
-    print(f"文件数量: {len(files)}")
+    print(f"文件数量: {len(source_files)}")
     print("=" * 60)
 
-    for file_path in files:
-        target = process_file(file_path, raw_dir, output_dir)
-        print(f"[OK] {file_path.relative_to(raw_dir)} -> {target.relative_to(output_dir)}")
+    if not source_files:
+        print("未发现待处理文件。")
+        return
+
+    for source_file in source_files:
+        target = process_file(source_file, raw_dir, output_dir)
+        rel_source = source_file.relative_to(raw_dir)
+        rel_target = target.relative_to(output_dir)
+        print(f"[OK] {rel_source} -> {rel_target}")
 
     print("=" * 60)
     print("清洗完成!")
@@ -453,4 +600,11 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Clean RFC/raw protocol documents into Markdown")
+    parser.add_argument("--raw-dir", type=Path, default=RAW_DIR, help=f"原始目录（默认: {RAW_DIR}）")
+    parser.add_argument("--output-dir", type=Path, default=CLEAN_DIR, help=f"输出目录（默认: {CLEAN_DIR}）")
+    args = parser.parse_args()
+
+    main(args.raw_dir, args.output_dir)
