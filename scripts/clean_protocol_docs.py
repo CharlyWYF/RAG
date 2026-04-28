@@ -115,6 +115,22 @@ def _is_section_header(line: str, protocol: str) -> bool:
 
     section_id, title = match.groups()
 
+    if protocol == "http":
+        title_lower = title.strip().lower()
+        if title_lower.startswith((
+            "initialize ",
+            "compute ",
+            "wait ",
+            "if ",
+            "repeat ",
+            "check ",
+            "close ",
+            "transmit ",
+        )):
+            return False
+        if title.strip().endswith(":"):
+            return False
+
     if protocol != "dns" and re.match(r"^\d+\.$", section_id):
         words = title.split()
         if len(words) > 4:
@@ -216,6 +232,17 @@ def _drop_front_matter(lines: list[str], numbered_mode: bool, protocol: str) -> 
             if line == "Introduction":
                 return lines[index:]
         return lines
+
+    if protocol == "http":
+        for index, line in enumerate(lines):
+            normalized = line.strip().lower()
+            if normalized in {
+                "1 introduction",
+                "1. introduction",
+                "1 introduction.",
+                "1. introduction.",
+            }:
+                return lines[index:]
 
     if numbered_mode:
         start_index: int | None = None
