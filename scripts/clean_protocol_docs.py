@@ -12,8 +12,8 @@ from pathlib import Path
 if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-RAW_DIR = Path(__file__).parent.parent / "data" / "protocols"
-CLEAN_DIR = RAW_DIR / "cleaned"
+RAW_DIR = Path(__file__).parent.parent / "data" / "protocols" / "raw"
+CLEAN_DIR = Path(__file__).parent.parent / "data" / "protocols" / "cleaned"
 
 SKIP_LINE_PATTERNS = [
     re.compile(r"^\s*Page\s+\d+\s*$", re.IGNORECASE),
@@ -28,7 +28,11 @@ SKIP_LINE_PATTERNS = [
     re.compile(r"^\s*Updates:\s*", re.IGNORECASE),
     re.compile(r"^\s*Updated by:\s*", re.IGNORECASE),
     re.compile(r"^\s*.+\[Page\s+\d+\]\s*$", re.IGNORECASE),
+    re.compile(r"^\s*\[page\s+\d+\]\s+.+$", re.IGNORECASE),
+    re.compile(r"^\s*[A-Z][A-Za-z]+\s+\[page\s+\d+\]\s*$", re.IGNORECASE),
     re.compile(r"^\s*RFC\s+\d+\s+.+\d{4}\s*$", re.IGNORECASE),
+    re.compile(r"^\s*[0-3]?\d\s+[A-Z][a-z]{2}\s+\d{4}\s*$"),
+    re.compile(r"^\s*RFC\s+\d+\s+[A-Za-z][A-Za-z0-9 /.-]+$", re.IGNORECASE),
 ]
 
 TOC_DOTTED_LINE_RE = re.compile(r"^\s*\d+(?:\.\d+)*\.?\s+.+?\.{2,}\s*\d+\s*$")
@@ -37,6 +41,7 @@ SECTION_HEADER_RE = re.compile(r"^\s*(\d+(?:\.\d+)+|\d+\.)(?:\.)?[ \t]+([A-Za-z]
 ICMP_ENUM_RE = re.compile(r"^\s*\d+\s*=\s+.+")
 BIT_LABEL_RE = re.compile(r"^\s*\d+(?:\s+\d+)+\s*$")
 ASCII_ART_RE = re.compile(r"^[|+\-]+$")
+UNDERLINE_HEADER_RE = re.compile(r"^-{3,}$")
 PAGE_BREAK_RE = re.compile(r"\f")
 MULTI_BLANK_RE = re.compile(r"\n{3,}")
 HTML_TAG_RE = re.compile(r"<[^>]+>")
@@ -49,7 +54,7 @@ TRAILING_SECTIONS = [
     re.compile(r"^\s*Authors'? Addresses\s*$", re.IGNORECASE),
 ]
 
-EXCLUDED_DIR_NAMES = {"cleaned", "raw", "__pycache__"}
+EXCLUDED_DIR_NAMES = {"cleaned", "__pycache__"}
 
 
 def _guess_kind(path: Path) -> str:
@@ -95,6 +100,8 @@ def _normalize_lines(text: str, suffix: str = "") -> list[str]:
         if any(pattern.match(line) for pattern in SKIP_LINE_PATTERNS):
             continue
         line = re.sub(r"[ \t]+", " ", line).strip()
+        if re.fullmatch(r"[A-Za-z][A-Za-z0-9 /.-]+ RFC \d+", line):
+            continue
         lines.append(line)
     return lines
 
@@ -273,24 +280,42 @@ def _drop_front_matter(lines: list[str], numbered_mode: bool, protocol: str) -> 
 
 def _promote_markdown_headers(lines: list[str], numbered_mode: bool, protocol: str) -> list[str]:
     promoted: list[str] = []
+    index = 0
 
-    for line in lines:
+    while index < len(lines):
+        line = lines[index]
+
+        if index + 1 < len(lines) and UNDERLINE_HEADER_RE.match(lines[index + 1].strip()):
+            if line and not _is_toc_line(line) and not ICMP_ENUM_RE.match(line):
+                promoted.append(f"# {line.strip()}")
+                index += 2
+                continue
+
+        if promoted and line and promoted[-1] == f"# {line.strip()}":
+            index += 1
+            continue
+
         if protocol == "icmp":
             if ICMP_ENUM_RE.match(line) or BIT_LABEL_RE.match(line) or ASCII_ART_RE.match(line):
                 promoted.append(line)
+                index += 1
                 continue
             if re.match(r"^[A-Z][A-Za-z /\-]+Message$", line):
                 promoted.append(f"# {line}")
+                index += 1
                 continue
             if line in {"Introduction", "Message Formats"}:
                 promoted.append(f"# {line}")
+                index += 1
                 continue
             promoted.append(line)
+            index += 1
             continue
 
         if numbered_mode:
             if not _is_section_header(line, protocol):
                 promoted.append(line)
+                index += 1
                 continue
 
             match = SECTION_HEADER_RE.match(line)
@@ -300,19 +325,42 @@ def _promote_markdown_headers(lines: list[str], numbered_mode: bool, protocol: s
             level = min(normalized_section_id.count(".") + 1, 6)
             hashes = "#" * level
             promoted.append(f"{hashes} {normalized_section_id} {title.strip()}")
+            index += 1
             continue
 
         if line.isupper() and 3 <= len(line) <= 120 and not _is_toc_line(line):
             promoted.append(f"# {line.title()}")
+            index += 1
             continue
 
         if re.match(r"^[A-Z][A-Za-z /\-]+Message$", line):
             promoted.append(f"# {line}")
+            index += 1
             continue
 
         promoted.append(line)
+        index += 1
 
     return promoted
+
+
+def _dedupe_promoted_lines(lines: list[str]) -> list[str]:
+    deduped: list[str] = []
+    index = 0
+
+    while index < len(lines):
+        line = lines[index]
+        if (
+            line
+            and index + 1 < len(lines)
+            and lines[index + 1] == f"# {line}"
+        ):
+            index += 1
+            continue
+        deduped.append(line)
+        index += 1
+
+    return deduped
 
 
 def clean_text(text: str, suffix: str = "", protocol: str = "unknown") -> str:
@@ -321,6 +369,7 @@ def clean_text(text: str, suffix: str = "", protocol: str = "unknown") -> str:
     lines = _drop_front_matter(lines, numbered_mode, protocol)
     lines = _strip_table_of_contents(lines, protocol)
     lines = _promote_markdown_headers(lines, numbered_mode, protocol)
+    lines = _dedupe_promoted_lines(lines)
     lines = _trim_trailing_sections(lines)
 
     cleaned = "\n".join(lines)

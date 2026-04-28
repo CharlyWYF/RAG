@@ -53,7 +53,7 @@ cp .env.example .env
 
 ## 3. 准备知识库
 
-当前项目优先处理本地 `data/protocols/` 下的 RFC 文档。
+当前项目优先处理本地 `data/protocols/raw/` 下的 RFC 文档。
 
 ### 推荐工作流
 
@@ -61,7 +61,7 @@ cp .env.example .env
 2. 对 RFC 原文做轻量清洗
 
 ```bash
-python scripts/clean_protocol_docs.py --raw-dir data/protocols --output-dir data/protocols/cleaned
+python scripts/clean_protocol_docs.py --raw-dir data/protocols/raw --output-dir data/protocols/cleaned
 ```
 
 清洗后的输出默认放到：
@@ -195,7 +195,8 @@ streamlit run app.py
 - `src/ingest.py`：离线建库
 - `src/retriever.py`：向量检索封装
 - `src/qa.py`：RAG 问答逻辑
-- `data/protocols/`：协议知识文档
+- `data/protocols/raw/`：原始协议文档
+- `data/protocols/cleaned/`：清洗后的协议文档
 
 ## 8. 注意事项
 

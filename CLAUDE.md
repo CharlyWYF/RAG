@@ -86,7 +86,7 @@ python scripts/download_protocols.py --protocol tcp,http,dns
 Clean raw protocol/RFC documents into Markdown better suited for retrieval:
 
 ```bash
-python scripts/clean_protocol_docs.py --raw-dir data/protocols --output-dir data/protocols/cleaned
+python scripts/clean_protocol_docs.py --raw-dir data/protocols/raw --output-dir data/protocols/cleaned
 ```
 
 Recommended follow-up after cleaning:
@@ -169,7 +169,7 @@ Because `src.ingest._split_markdown_sections()` explicitly looks for the `# Sour
 ## Data and Persistence
 
 Important directories:
-- `data/protocols/`: source corpus location
+- `data/protocols/raw/`: source corpus location
 - `data/protocols/cleaned/`: cleaned Markdown corpus used for structure-aware chunking
 - `chroma_db/`: persisted vector store
 - `docs/`: project constraints for corpus scope and cleaning rules

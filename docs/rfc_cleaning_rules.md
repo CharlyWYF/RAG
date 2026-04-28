@@ -27,9 +27,9 @@ RFC 处理遵循以下原则：
 
 输入为原始 RFC 文本文件，例如：
 
-- `data/protocols/tcp/rfc793.txt`
-- `data/protocols/dns/rfc1035.txt`
-- `data/protocols/http/rfc2616.txt`
+- `data/protocols/raw/tcp/rfc793.txt`
+- `data/protocols/raw/dns/rfc1035.txt`
+- `data/protocols/raw/http/rfc2616.txt`
 
 ### 3.2 输出
 

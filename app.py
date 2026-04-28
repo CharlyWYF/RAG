@@ -833,7 +833,7 @@ def _render_config_tab() -> None:
     st.caption("保存后，部分配置需要重新建库或刷新页面后生效。")
 
     with st.form("env_config_form"):
-        data_dir = st.text_input("DATA_DIR", value=env_values.get("DATA_DIR", "data/protocols"))
+        data_dir = st.text_input("DATA_DIR", value=env_values.get("DATA_DIR", "data/protocols/cleaned"))
         chroma_dir = st.text_input("CHROMA_DIR", value=env_values.get("CHROMA_DIR", "chroma_db"))
 
         c1, c2, c3 = st.columns(3)

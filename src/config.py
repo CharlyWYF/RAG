@@ -45,6 +45,6 @@ def load_settings() -> Settings:
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
         top_k=top_k,
-        data_dir=os.getenv("DATA_DIR", "data/protocols"),
+        data_dir=os.getenv("DATA_DIR", "data/protocols/cleaned"),
         chroma_dir=os.getenv("CHROMA_DIR", "chroma_db"),
     )
