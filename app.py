@@ -6,12 +6,21 @@ from time import perf_counter
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
 
 import streamlit as st
 
 from scripts.clean_protocol_docs import process_file
+from src.app_views import render_build_stats, render_qa_result
 from src.config import load_settings
+from src.corpus_service import (
+    build_raw_doc_rows,
+    clean_single_raw_file,
+    delete_kb_file,
+    save_kb_upload,
+    save_raw_upload,
+    summarize_kb_source_docs,
+    summarize_raw_docs,
+)
 from src.file_ops import (
     cleaned_target_for,
     is_chroma_ready,
@@ -22,7 +31,7 @@ from src.file_ops import (
     resolve_source_path,
     write_env_file,
 )
-from src.ingest import build_index
+from src.ingest_service import run_ingest
 from src.presentation import build_preview_url, format_build_timing_rows, format_timing_rows
 from src.qa import health_check
 from src.qa_service import AnswerStreamHandler, execute_qa_flow
@@ -41,19 +50,6 @@ EDITABLE_ENV_KEYS = [
 ]
 RAW_DOCS_DIR = Path(__file__).parent / "data" / "protocols" / "raw"
 CLEANED_DOCS_DIR = Path(__file__).parent / "data" / "protocols" / "cleaned"
-RAW_DOC_SUFFIXES = {".txt", ".md", ".html", ".htm"}
-QUERY_REWRITE_PROMPT = """你是检索查询优化助手。请根据用户问题生成 2 条彼此互补、适合网络协议知识库检索的子查询。
-
-要求：
-1. 保留原问题语义，不改变用户意图。
-2. 优先补齐协议名、术语名、字段名、流程名等检索关键词。
-3. 两条子查询应尽量覆盖不同角度或者不同网络协议，但都必须与原问题高度相关。
-4. 去口语化，但不要扩写成多句解释。
-5. 只输出 2 行，每行 1 条子查询，不要加编号，不要解释。
-
-用户问题：
-{question}
-"""
 
 
 def _render_qa_tab(
@@ -140,76 +136,7 @@ def _render_qa_tab(
     if not stored_question or not isinstance(stored_result, dict):
         return
 
-    timings = stored_result.get("timings", [])
-    total_seconds = float(stored_result.get("total_seconds", 0.0))
-    timing_rows = format_timing_rows(timings)
-    first_token_seconds = next(
-        (
-            float(item.get("seconds", 0.0))
-            for item in timings
-            if str(item.get("stage", "")) == "first_token"
-        ),
-        0.0,
-    )
-
-    with perf_placeholder.container():
-        st.metric("首字响应时间", f"{first_token_seconds:.3f} 秒")
-        if timing_rows:
-            st.dataframe(timing_rows, width="stretch", hide_index=True)
-
-    with st.container(border=True):
-        st.markdown("### 最终回答")
-        st.caption(f"问题：{stored_question}")
-        st.write(stored_result["answer"])
-
-    rewritten_queries = stored_result.get("rewritten_queries", [])
-    if isinstance(rewritten_queries, list) and rewritten_queries:
-        with st.expander("查询改写", expanded=False):
-            st.caption(f"原问题：{stored_question}")
-            for idx, query in enumerate(rewritten_queries, start=1):
-                st.write(f"{idx}. {query}")
-
-    contexts = stored_result.get("contexts", [])
-    sources = stored_result.get("sources", [])
-    unique_sources = list(dict.fromkeys(str(src) for src in sources))
-    col1, col2 = st.columns(2)
-    col1.metric("检索片段数", len(contexts))
-    col2.metric("来源文件数", len(unique_sources))
-
-    with st.expander(f"检索片段（{len(contexts)}）", expanded=False):
-        if not contexts:
-            st.write("无上下文。")
-        for idx, ctx in enumerate(contexts, start=1):
-            source_name = str(sources[idx - 1]) if idx - 1 < len(sources) else "unknown"
-            resolved_source = resolve_source_path(source_name, Path(__file__).parent) if source_name != "unknown" else None
-            preview_url = build_preview_url(source_name, Path(__file__).parent) if source_name != "unknown" else ""
-            with st.container(border=True):
-                st.caption(f"片段 {idx} / {len(contexts)}")
-                if source_name != "unknown":
-                    source_col, action_col = st.columns([5, 1])
-                    with source_col:
-                        st.caption(f"来源：{source_name}")
-                        if resolved_source is not None:
-                            st.caption(f"解析路径：{resolved_source}")
-                    with action_col:
-                        st.link_button("预览", preview_url, width="stretch")
-                else:
-                    st.caption(f"来源：{source_name}")
-                st.write(ctx)
-
-    with st.expander(f"来源文件（{len(unique_sources)}）", expanded=False):
-        if not unique_sources:
-            st.write("无来源。")
-        else:
-            for src in unique_sources:
-                resolved_src = resolve_source_path(src, Path(__file__).parent)
-                preview_url = build_preview_url(src, Path(__file__).parent)
-                src_col, action_col = st.columns([5, 1])
-                with src_col:
-                    st.write(src)
-                    st.caption(f"解析路径：{resolved_src}")
-                with action_col:
-                    st.link_button("预览", preview_url, use_container_width=True)
+    render_qa_result(stored_question, stored_result, Path(__file__).parent, perf_placeholder)
 
 
 def _render_raw_docs_tab() -> None:
@@ -218,8 +145,9 @@ def _render_raw_docs_tab() -> None:
 
     raw_dir = RAW_DOCS_DIR
     cleaned_dir = CLEANED_DOCS_DIR
-    docs = list_processable_raw_docs(raw_dir)
-    cleaned_count = sum(1 for doc in docs if is_cleaned(doc, raw_dir, cleaned_dir))
+    summary = summarize_raw_docs(raw_dir, cleaned_dir)
+    docs = summary["docs"]
+    cleaned_count = int(summary["cleaned_count"])
 
     st.markdown("### 目录与状态")
 
@@ -278,39 +206,23 @@ def _render_raw_docs_tab() -> None:
         if upload_file is None:
             upload_status_placeholder.warning("请先选择文件。")
         else:
-            target = raw_dir / upload_file.name
-            if target.exists() and not overwrite_upload:
-                upload_status_placeholder.warning("存在同名文件，请勾选“允许覆盖同名原始文件”后重试。")
-            else:
-                raw_dir.mkdir(parents=True, exist_ok=True)
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(upload_file.getvalue())
+            ok, message = save_raw_upload(raw_dir, upload_file.name, upload_file.getvalue(), overwrite_upload)
+            if ok:
                 st.session_state["raw_docs_uploader_version"] = uploader_version + 1
                 st.session_state["raw_docs_last_upload"] = {
                     "type": "success",
-                    "message": f"原始文件上传成功：{upload_file.name}",
+                    "message": message,
                 }
                 st.rerun()
+            else:
+                upload_status_placeholder.warning(message)
 
     st.divider()
     st.markdown("### 原始文档列表")
     st.caption("查看每个原始文件是否已经清洗，并支持单文件清洗。")
 
     if docs:
-        rows = []
-        for doc in docs:
-            rel = doc.relative_to(raw_dir)
-            cleaned_target = cleaned_target_for(doc, raw_dir, cleaned_dir)
-            stat = doc.stat()
-            rows.append(
-                {
-                    "原始文件": str(rel),
-                    "大小(KB)": round(stat.st_size / 1024, 2),
-                    "修改时间": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
-                    "清洗状态": "已清洗" if cleaned_target.exists() else "未清洗",
-                    "cleaned 文件": str(cleaned_target.relative_to(cleaned_dir)),
-                }
-            )
+        rows = build_raw_doc_rows(raw_dir, cleaned_dir)
 
         with st.container(border=True):
             st.caption("文件列表")
@@ -339,26 +251,23 @@ def _render_raw_docs_tab() -> None:
             if should_show_existing_info:
                 st.info(f"该文件已存在清洗结果，将重新生成：{cleaned_target}")
             if st.button("开始清洗所选文件", type="primary", width="stretch", key="process_single_raw"):
-                try:
-                    with st.spinner(f"正在清洗：{selected_raw}"):
-                        target = process_file(selected_path, raw_dir, cleaned_dir)
-                except Exception as exc:
-                    error_message = f"清洗失败：{exc}"
-                    st.session_state["raw_docs_last_processed"] = {
-                        "type": "error",
-                        "message": error_message,
-                        "file": selected_raw,
-                    }
-                    status_placeholder.error(error_message)
-                else:
-                    success_message = f"清洗完成：{selected_raw} -> {target.relative_to(cleaned_dir)}"
+                with st.spinner(f"正在清洗：{selected_raw}"):
+                    ok, message = clean_single_raw_file(raw_dir, cleaned_dir, selected_raw)
+                if ok:
                     st.session_state["raw_docs_last_processed"] = {
                         "type": "success",
-                        "message": success_message,
+                        "message": message,
                         "file": selected_raw,
                     }
                     st.toast(f"已完成清洗：{selected_raw}")
                     st.rerun()
+                else:
+                    st.session_state["raw_docs_last_processed"] = {
+                        "type": "error",
+                        "message": message,
+                        "file": selected_raw,
+                    }
+                    status_placeholder.error(message)
     else:
         st.info("当前 raw 目录下暂无可处理文件。")
 
@@ -375,7 +284,7 @@ def _render_kb_tab(progress_placeholder, log_placeholder, perf_placeholder) -> N
     data_dir = Path(settings.data_dir)
     chroma_dir = Path(settings.chroma_dir)
 
-    docs = list_raw_docs(data_dir) if data_dir.exists() else []
+    docs, rows = summarize_kb_source_docs(data_dir)
     chroma_ready = is_chroma_ready(chroma_dir)
 
     st.markdown("### 当前配置")
@@ -436,29 +345,13 @@ def _render_kb_tab(progress_placeholder, log_placeholder, perf_placeholder) -> N
             if upload_file is None:
                 st.warning("请先选择文件。")
             else:
-                target = data_dir / upload_file.name
-                if target.exists() and not overwrite_upload:
-                    st.warning("存在同名文件，请勾选“允许覆盖同名文件”后重试。")
+                ok, message = save_kb_upload(data_dir, upload_file.name, upload_file.getvalue(), overwrite_upload)
+                if ok:
+                    st.success(message)
                 else:
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    target.write_bytes(upload_file.getvalue())
-                    st.success(f"文件已保存：{target}")
+                    st.warning(message)
 
         if docs:
-            rows = []
-            for doc in docs:
-                rel = doc.relative_to(data_dir)
-                stat = doc.stat()
-                rows.append(
-                    {
-                        "文件": str(rel),
-                        "大小(KB)": round(stat.st_size / 1024, 2),
-                        "修改时间": datetime.fromtimestamp(stat.st_mtime).strftime(
-                            "%Y-%m-%d %H:%M:%S"
-                        ),
-                    }
-                )
-
             with st.container(border=True):
                 st.caption("文件列表")
                 st.dataframe(rows, width="stretch", hide_index=True)
@@ -474,12 +367,11 @@ def _render_kb_tab(progress_placeholder, log_placeholder, perf_placeholder) -> N
                     if not confirm_delete:
                         st.warning("请先勾选删除确认。")
                     else:
-                        target = data_dir / delete_target
-                        if target.exists():
-                            target.unlink()
-                            st.success(f"已删除：{target}")
+                        ok, message = delete_kb_file(data_dir, delete_target)
+                        if ok:
+                            st.success(message)
                         else:
-                            st.warning("文件不存在，可能已被删除。")
+                            st.warning(message)
         else:
             st.info("当前暂无 .md/.txt 原始文件。")
 
@@ -506,93 +398,27 @@ def _render_kb_tab(progress_placeholder, log_placeholder, perf_placeholder) -> N
     if st.button("开始构建向量库", type="primary", width="stretch"):
         build_progress_bar = st.progress(0, text="等待开始...")
         build_status_placeholder = st.empty()
-        build_logs: list[str] = []
 
         def on_build_progress(message: str, progress: float | None = None) -> None:
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            build_logs.append(f"[{timestamp}] {message}")
             build_status_placeholder.info(message)
             progress_placeholder.info(message)
             if progress is not None:
                 safe_progress = max(0.0, min(progress, 1.0))
                 build_progress_bar.progress(safe_progress, text=f"{int(safe_progress * 100)}%")
-            log_placeholder.code("\n".join(build_logs), language="text")
 
         with st.spinner("正在构建向量库..."):
-            try:
-                on_build_progress("开始执行向量库构建...", 0.01)
-                stats = build_index(
-                    mode=mode,
-                    chunk_strategy=chunk_strategy,
-                    progress_callback=on_build_progress,
-                )
-            except Exception as exc:
-                on_build_progress("向量库构建失败。", 1.0)
+            stats, build_logs, error_message = run_ingest(
+                mode=mode,
+                chunk_strategy=chunk_strategy,
+                progress_callback=on_build_progress,
+            )
+            log_placeholder.code("\n".join(build_logs), language="text")
+            if error_message is not None:
                 perf_placeholder.error("构建耗时统计不可用")
-                st.error(f"构建失败：{exc}")
+                st.error(f"构建失败：{error_message}")
             else:
-                on_build_progress("向量库构建完成。", 1.0)
-                with perf_placeholder.container():
-                    st.metric("总耗时", f"{float(stats.get('total_seconds', 0.0)):.3f} 秒")
-                    st.metric("平均每文档耗时", f"{float(stats.get('seconds_per_doc', 0.0)):.3f} 秒")
-                    timing_items = stats.get("timings", [])
-                    if isinstance(timing_items, list) and timing_items:
-                        timing_rows = format_build_timing_rows(timing_items)
-                        st.dataframe(timing_rows, width="stretch", hide_index=True)
-
-                c7, c8, c9, c10 = st.columns(4)
-                with c7:
-                    with st.container(border=True):
-                        st.caption("模式")
-                        st.markdown(f"**{stats.get('mode', '-')}**")
-                with c8:
-                    with st.container(border=True):
-                        st.caption("Chunk 策略")
-                        st.markdown(f"**{chunk_strategy}**")
-                with c9:
-                    with st.container(border=True):
-                        st.caption("文档总数")
-                        st.markdown(f"**{int(stats.get('docs_total', 0))}**")
-                with c10:
-                    with st.container(border=True):
-                        st.caption("写入文档数")
-                        st.markdown(f"**{int(stats.get('docs_indexed', 0))}**")
-
-                d1, d2, d3, d4 = st.columns(4)
-                with d1:
-                    with st.container(border=True):
-                        st.caption("跳过文档数")
-                        st.markdown(f"**{int(stats.get('skipped_docs', 0))}**")
-                with d2:
-                    with st.container(border=True):
-                        st.caption("新增文档")
-                        st.markdown(f"**{int(stats.get('added_docs', 0))}**")
-                with d3:
-                    with st.container(border=True):
-                        st.caption("更新文档")
-                        st.markdown(f"**{int(stats.get('updated_docs', 0))}**")
-                with d4:
-                    with st.container(border=True):
-                        st.caption("删除文档")
-                        st.markdown(f"**{int(stats.get('deleted_docs', 0))}**")
-
-                e1, e2, e3, e4 = st.columns(4)
-                with e1:
-                    with st.container(border=True):
-                        st.caption("未变化文档")
-                        st.markdown(f"**{int(stats.get('unchanged_docs', 0))}**")
-                with e2:
-                    with st.container(border=True):
-                        st.caption("写入 Chunk")
-                        st.markdown(f"**{int(stats.get('chunks_written', 0))}**")
-                with e3:
-                    with st.container(border=True):
-                        st.caption("删除 Chunk")
-                        st.markdown(f"**{int(stats.get('deleted_chunks', 0))}**")
-                with e4:
-                    with st.container(border=True):
-                        st.caption("持久化目录")
-                        st.code(str(stats.get("persist_dir", "-")), language="text")
+                assert stats is not None
+                render_build_stats(stats, chunk_strategy, perf_placeholder)
 
 
 def _render_config_tab() -> None:
