@@ -335,8 +335,12 @@
             <div>├─ <span class="file">ingest.py</span></div>
             <div>├─ <span class="file">retriever.py</span></div>
             <div>├─ <span class="file">qa.py</span></div>
+            <div>├─ <span class="file">qa_service.py</span></div>
+            <div>├─ <span class="file">ingest_service.py</span></div>
+            <div>├─ <span class="file">corpus_service.py</span></div>
             <div>├─ <span class="file">file_ops.py</span></div>
-            <div>└─ <span class="file">presentation.py</span></div>
+            <div>├─ <span class="file">presentation.py</span></div>
+            <div>└─ <span class="file">app_views.py</span></div>
           </div>
         </div>
 
@@ -353,11 +357,11 @@
             </div>
             <div class="legend-item">
               <span class="dot" style="background: var(--accent-c);"></span>
-              <div><strong>问答在线层</strong>：负责检索器、提示词、模型调用与问答结果生成。</div>
+              <div><strong>业务编排层</strong>：负责问答执行、建库执行、文档处理等完整服务流程。</div>
             </div>
             <div class="legend-item">
               <span class="dot" style="background: var(--accent-d);"></span>
-              <div><strong>辅助工具层</strong>：给 <code>app.py</code> 提供文件处理、展示格式化等可复用逻辑。</div>
+              <div><strong>辅助与视图层</strong>：给 <code>app.py</code> 提供文件工具、展示格式化与纯前端渲染函数。</div>
             </div>
           </div>
         </aside>
@@ -430,6 +434,50 @@
 
       <article class="module-card">
         <div class="module-top">
+          <span class="module-file">src/qa_service.py</span>
+          <span class="module-role" style="background: var(--accent-c);">问答编排</span>
+        </div>
+        <h3>问答业务服务层</h3>
+        <p>这是从 <code>app.py</code> 中抽离出来的问答主流程服务。它把查询改写、多路检索、文档去重、流式生成和 timing 汇总整合成可复用业务接口。</p>
+        <ul>
+          <li>执行查询改写与子查询解析</li>
+          <li>组织多路检索与片段去重</li>
+          <li>驱动流式回答与首字时间记录</li>
+          <li>让后续脚本实验不依赖 Streamlit 页面</li>
+        </ul>
+      </article>
+
+      <article class="module-card">
+        <div class="module-top">
+          <span class="module-file">src/ingest_service.py</span>
+          <span class="module-role" style="background: var(--accent-b);">建库编排</span>
+        </div>
+        <h3>建库业务服务层</h3>
+        <p>这个模块负责把向量库构建过程包装成一个更适合前端与实验脚本复用的服务接口，统一返回日志、错误信息和统计结果。</p>
+        <ul>
+          <li>组织构建过程与进度回调</li>
+          <li>聚合运行日志</li>
+          <li>返回 stats / logs / error 的统一结构</li>
+        </ul>
+      </article>
+
+      <article class="module-card">
+        <div class="module-top">
+          <span class="module-file">src/corpus_service.py</span>
+          <span class="module-role" style="background: var(--accent-b);">文档编排</span>
+        </div>
+        <h3>文档处理服务层</h3>
+        <p>这个模块承接 raw/cleaned 文档处理相关的业务逻辑，包括上传、删除、列表汇总和单文件清洗，减少页面层直接操作文件系统。</p>
+        <ul>
+          <li>汇总 raw 文档与 cleaned 状态</li>
+          <li>处理原始文件上传保存</li>
+          <li>处理知识库文件删除</li>
+          <li>封装单文件清洗执行</li>
+        </ul>
+      </article>
+
+      <article class="module-card">
+        <div class="module-top">
           <span class="module-file">src/file_ops.py</span>
           <span class="module-role" style="background: var(--accent-d);">文件工具</span>
         </div>
@@ -457,6 +505,20 @@
           <li>生成来源预览页链接</li>
         </ul>
       </article>
+
+      <article class="module-card">
+        <div class="module-top">
+          <span class="module-file">src/app_views.py</span>
+          <span class="module-role" style="background: var(--accent-d);">前端视图</span>
+        </div>
+        <h3>页面渲染片段层</h3>
+        <p>这里放的是纯 Streamlit 渲染函数，例如问答结果展示和建库统计卡片。它不承担业务编排，只负责把数据渲染出来。</p>
+        <ul>
+          <li>渲染问答结果、来源片段与预览入口</li>
+          <li>渲染建库结果统计卡片</li>
+          <li>帮助 <code>app.py</code> 更接近“纯前端入口”</li>
+        </ul>
+      </article>
     </section>
 
     <section class="flow-card">
@@ -465,38 +527,38 @@
         <div class="flow-step">
           <div class="index">01</div>
           <h3>准备与配置</h3>
-          <p><code>config.py</code> 读取环境变量；<code>file_ops.py</code> 处理 raw/cleaned 文件与配置文件读写，为页面交互提供底层支持。</p>
+          <p><code>config.py</code> 读取环境变量；<code>file_ops.py</code> 处理 raw/cleaned 文件与配置文件读写；<code>corpus_service.py</code> 进一步组织文档处理业务流程。</p>
         </div>
         <div class="flow-step">
           <div class="index">02</div>
           <h3>离线建库</h3>
-          <p><code>ingest.py</code> 读取 cleaned 文档，切块、向量化并写入 Chroma；同时输出文档数、chunk 数与阶段耗时。</p>
+          <p><code>ingest.py</code> 负责切块和写库；<code>ingest_service.py</code> 负责建库过程的日志、回调与统一结果封装；<code>presentation.py</code> 负责把统计结果转换成页面易读格式。</p>
         </div>
         <div class="flow-step">
           <div class="index">03</div>
           <h3>在线问答</h3>
-          <p><code>retriever.py</code> 连接向量库；<code>qa.py</code> 负责提示词、模型调用和基础问答能力；<code>presentation.py</code> 把结果整理给页面展示。</p>
+          <p><code>retriever.py</code> 连接向量库；<code>qa.py</code> 提供底层问答能力；<code>qa_service.py</code> 负责查询改写、多路检索与最终问答编排；<code>app_views.py</code> 负责结果渲染。</p>
         </div>
       </div>
     </section>
 
     <section class="insight-grid">
       <article class="insight-card">
-        <h2>为什么还保留 app.py 很大？</h2>
+        <h2>为什么 app.py 现在更像前端入口？</h2>
         <p>
-          因为它仍然是 Streamlit 入口文件，负责 tab 布局、按钮交互、状态占位和运行时反馈。现在已经把纯工具逻辑开始抽离，但页面层本身还在这里。
+          因为问答编排、建库编排、文档处理编排都已经被拆到 service 层，而结果展示卡片也被拆到视图层。<code>app.py</code> 现在主要负责 Streamlit 页面结构、交互事件和占位符更新。
         </p>
       </article>
       <article class="insight-card">
-        <h2>下一步最值得继续拆什么？</h2>
+        <h2>现在最值得继续做什么？</h2>
         <p>
-          最值得继续抽的是问答编排：查询改写、多路检索、去重、流式回答与 timing 汇总。这些目前还主要在 <code>app.py</code> 的问答 tab 中。
+          如果后续目标是自动化实验，下一步最值得补的不是继续拆页面，而是做批量实验 runner，让 <code>qa_service.py</code> 和 <code>ingest_service.py</code> 直接服务于实验脚本。
         </p>
       </article>
       <article class="insight-card">
         <h2>这个页面最想让你记住什么？</h2>
         <p>
-          <strong>src 不是按“页面”拆的，而是按“职责”拆的。</strong> 配置、建库、检索、问答、文件工具、展示辅助各自承担清晰角色，这样后续扩展才不会让 <code>app.py</code> 一直膨胀。
+          <strong>现在的 src 已经形成了“基础能力层 + 业务编排层 + 前端视图层”的结构。</strong> 这意味着不用依赖 Streamlit，也能在后端完成问答、建库和文档处理核心业务。
         </p>
       </article>
     </section>
