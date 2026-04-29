@@ -13,11 +13,16 @@ from matplotlib.font_manager import FontProperties
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SUMMARY = PROJECT_ROOT / "runs" / "eval" / "20260429_173324" / "summary.json"
 DEFAULT_RESULTS = PROJECT_ROOT / "runs" / "eval" / "20260429_173324" / "results.jsonl"
+DEFAULT_MANUAL_SUMMARY = PROJECT_ROOT / "runs" / "eval" / "20260429_173324" / "manual_scoring_summary.json"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "runs" / "figures"
 
 
 def load_results(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def load_manual_summary(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _load_zh_font() -> FontProperties:
@@ -291,10 +296,20 @@ def plot_refusal_summary(results: list[dict], output_dir: Path) -> None:
     ax.set_yticklabels(row_labels, fontproperties=ZH_FONT)
     ax.set_title("系统保守回答行为混淆矩阵", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
 
+    max_value = max(tp, fn, fp, tn, 1)
     for i in range(2):
         for j in range(2):
             value = matrix[i][j]
-            ax.text(j, i, str(value), ha="center", va="center", color="white" if value > max(tp, fn, fp, tn) / 2 else TEXT, fontproperties=ZH_FONT, fontsize=16)
+            ax.text(
+                j,
+                i,
+                str(value),
+                ha="center",
+                va="center",
+                color="white" if value > max_value / 2 else TEXT,
+                fontproperties=ZH_FONT,
+                fontsize=16,
+            )
 
     ax.set_xlabel("系统输出", fontproperties=ZH_FONT, color=TEXT)
     ax.set_ylabel("题目真实要求", fontproperties=ZH_FONT, color=TEXT, labelpad=8)
@@ -304,15 +319,139 @@ def plot_refusal_summary(results: list[dict], output_dir: Path) -> None:
     plt.close(fig)
 
 
+def plot_manual_score_overview(manual_summary: dict, output_dir: Path) -> None:
+    labels = ["正确性", "完整性", "忠实性", "检索相关性"]
+    values = [
+        float(manual_summary.get("avg_correctness", 0.0)),
+        float(manual_summary.get("avg_completeness", 0.0)),
+        float(manual_summary.get("avg_faithfulness", 0.0)),
+        float(manual_summary.get("avg_retrieval_relevance", 0.0)),
+    ]
+    colors = [PRIMARY, SECONDARY, ACCENT, ACCENT_RED]
+
+    fig, ax = plt.subplots(figsize=(8.5, 5.6))
+    bars = ax.bar(labels, values, color=colors)
+    ax.set_title("人工评分各维度平均值", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
+    ax.set_ylabel("平均分", fontproperties=ZH_FONT, color=TEXT)
+    ax.set_ylim(0, 2.1)
+    apply_axis_style(ax)
+    set_axis_fonts(ax)
+    for bar, value in zip(bars, values):
+        ax.text(bar.get_x() + bar.get_width() / 2, value + 0.03, f"{value:.2f}", ha="center", va="bottom", color=TEXT, fontproperties=ZH_FONT)
+    fig.tight_layout()
+    fig.savefig(output_dir / "fig09_manual_score_overview.png", dpi=220)
+    plt.close(fig)
+
+
+def plot_manual_score_by_protocol(manual_summary: dict, output_dir: Path) -> None:
+    data = manual_summary.get("by_protocol", {})
+    items = sorted(data.items(), key=lambda x: x[1].get("avg_correctness", 0.0), reverse=True)
+    labels = [k for k, _ in items]
+    correctness = [float(v.get("avg_correctness", 0.0)) for _, v in items]
+    completeness = [float(v.get("avg_completeness", 0.0)) for _, v in items]
+
+    fig, ax = plt.subplots(figsize=(11, 6.5))
+    y = list(range(len(labels)))
+    h = 0.36
+    ax.barh([i - h / 2 for i in y], correctness, height=h, color=PRIMARY, label="正确性")
+    ax.barh([i + h / 2 for i in y], completeness, height=h, color=ACCENT, label="完整性")
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels)
+    ax.set_xlim(0, 2.1)
+    ax.set_title("不同协议类别的人工评分对比", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
+    ax.set_xlabel("平均分", fontproperties=ZH_FONT, color=TEXT)
+    apply_axis_style(ax)
+    set_axis_fonts(ax)
+    ax.invert_yaxis()
+    legend = ax.legend(frameon=False, loc="lower right")
+    for text in legend.get_texts():
+        text.set_fontproperties(ZH_FONT)
+    fig.tight_layout()
+    fig.savefig(output_dir / "fig10_manual_score_by_protocol.png", dpi=220)
+    plt.close(fig)
+
+
+def plot_refusal_summary(results: list[dict], output_dir: Path) -> None:
+    tp = sum(1 for row in results if row.get("should_refuse") and row.get("refused"))
+    fn = sum(1 for row in results if row.get("should_refuse") and not row.get("refused"))
+    fp = sum(1 for row in results if not row.get("should_refuse") and row.get("refused"))
+    tn = sum(1 for row in results if not row.get("should_refuse") and not row.get("refused"))
+
+    matrix = [[tp, fn], [fp, tn]]
+    row_labels = ["应保守回答", "不应保守回答"]
+    col_labels = ["系统保守回答", "系统正常回答"]
+
+    fig, ax = plt.subplots(figsize=(7.2, 6.4))
+    im = ax.imshow(matrix, cmap="Blues")
+
+    ax.set_xticks([0, 1])
+    ax.set_yticks([0, 1])
+    ax.set_xticklabels(col_labels, fontproperties=ZH_FONT)
+    ax.set_yticklabels(row_labels, fontproperties=ZH_FONT)
+    ax.set_title("系统保守回答行为混淆矩阵", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
+
+    max_value = max(tp, fn, fp, tn, 1)
+    for i in range(2):
+        for j in range(2):
+            value = matrix[i][j]
+            ax.text(
+                j,
+                i,
+                str(value),
+                ha="center",
+                va="center",
+                color="white" if value > max_value / 2 else TEXT,
+                fontproperties=ZH_FONT,
+                fontsize=16,
+            )
+
+    ax.set_xlabel("系统输出", fontproperties=ZH_FONT, color=TEXT)
+    ax.set_ylabel("题目真实要求", fontproperties=ZH_FONT, color=TEXT, labelpad=8)
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    fig.subplots_adjust(left=0.20, bottom=0.12, right=0.88, top=0.90)
+    fig.savefig(output_dir / "fig08_refusal_confusion_matrix.png", dpi=220)
+    plt.close(fig)
+
+
+def plot_manual_score_by_question_type(manual_summary: dict, output_dir: Path) -> None:
+    data = manual_summary.get("by_question_type", {})
+    items = sorted(data.items(), key=lambda x: x[1].get("avg_completeness", 0.0), reverse=True)
+    labels = [k for k, _ in items]
+    completeness = [float(v.get("avg_completeness", 0.0)) for _, v in items]
+    faithfulness = [float(v.get("avg_faithfulness", 0.0)) for _, v in items]
+
+    fig, ax = plt.subplots(figsize=(11, 6.5))
+    y = list(range(len(labels)))
+    h = 0.36
+    ax.barh([i - h / 2 for i in y], completeness, height=h, color=SECONDARY, label="完整性")
+    ax.barh([i + h / 2 for i in y], faithfulness, height=h, color=ACCENT_RED, label="忠实性")
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels)
+    ax.set_xlim(0, 2.1)
+    ax.set_title("不同题型的人工评分对比", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
+    ax.set_xlabel("平均分", fontproperties=ZH_FONT, color=TEXT)
+    apply_axis_style(ax)
+    set_axis_fonts(ax)
+    ax.invert_yaxis()
+    legend = ax.legend(frameon=False, loc="lower right")
+    for text in legend.get_texts():
+        text.set_fontproperties(ZH_FONT)
+    fig.tight_layout()
+    fig.savefig(output_dir / "fig11_manual_score_by_question_type.png", dpi=220)
+    plt.close(fig)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate paper-ready experiment figures from evaluation summary")
     parser.add_argument("--summary", type=Path, default=DEFAULT_SUMMARY)
     parser.add_argument("--results", type=Path, default=DEFAULT_RESULTS)
+    parser.add_argument("--manual-summary", type=Path, default=DEFAULT_MANUAL_SUMMARY)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     args = parser.parse_args()
 
     summary = load_summary(args.summary)
     results = load_results(args.results)
+    manual_summary = load_manual_summary(args.manual_summary)
     ensure_output_dir(args.output_dir)
 
     plot_section_distribution(summary, args.output_dir)
@@ -322,6 +461,9 @@ def main() -> None:
     plot_protocol_hit_rate(summary, args.output_dir)
     plot_protocol_avg_total_time(summary, args.output_dir)
     plot_refusal_summary(results, args.output_dir)
+    plot_manual_score_overview(manual_summary, args.output_dir)
+    plot_manual_score_by_protocol(manual_summary, args.output_dir)
+    plot_manual_score_by_question_type(manual_summary, args.output_dir)
 
     print(f"[OK] 论文版图表已生成到: {args.output_dir}")
 
