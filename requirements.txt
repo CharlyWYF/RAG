@@ -5,3 +5,4 @@ langchain-community
 langchain-chroma
 langchain-text-splitters
 python-dotenv
+matplotlib
