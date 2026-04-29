@@ -48,17 +48,27 @@ def _build_embeddings(settings):
     return OpenAIEmbeddings(**embedding_kwargs)
 
 
-def health_check() -> dict[str, str]:
+def health_check() -> dict[str, str | float]:
     settings = load_settings()
 
+    t0 = perf_counter()
+    t_chat_start = perf_counter()
     build_llm(settings).invoke("请只回复: OK")
+    t_chat_end = perf_counter()
+
+    t_embedding_start = perf_counter()
     _build_embeddings(settings).embed_query("network protocol health check")
+    t_embedding_end = perf_counter()
+    t_total = perf_counter() - t0
 
     return {
         "status": "ok",
         "chat_model": settings.chat_model,
         "embedding_model": settings.embedding_model,
         "base_url": settings.openai_base_url or "(default)",
+        "chat_seconds": t_chat_end - t_chat_start,
+        "embedding_seconds": t_embedding_end - t_embedding_start,
+        "total_seconds": t_total,
     }
 
 

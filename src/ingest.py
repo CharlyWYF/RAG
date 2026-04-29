@@ -5,6 +5,7 @@ import hashlib
 import re
 import shutil
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Callable
 
 ProgressCallback = Callable[[str, float | None], None]
@@ -177,7 +178,7 @@ def _add_chunks_in_batches(
         db.add_documents(batch)
 
 
-def _new_stats(mode_text: str, docs_total: int, persist_dir: Path) -> dict[str, int | str]:
+def _new_stats(mode_text: str, docs_total: int, persist_dir: Path) -> dict[str, int | str | float | list[dict[str, float | str]]]:
     return {
         "mode": mode_text,
         "docs_total": docs_total,
@@ -190,6 +191,9 @@ def _new_stats(mode_text: str, docs_total: int, persist_dir: Path) -> dict[str, 
         "chunks": 0,
         "chunks_written": 0,
         "deleted_chunks": 0,
+        "timings": [],
+        "total_seconds": 0.0,
+        "seconds_per_doc": 0.0,
         "persist_dir": str(persist_dir),
     }
 
@@ -290,7 +294,8 @@ def build_index(
     mode: str = "rebuild",
     chunk_strategy: str = "fixed",
     progress_callback: ProgressCallback | None = None,
-) -> dict[str, int | str]:
+) -> dict[str, int | str | float]:
+    start_time = perf_counter()
     if mode not in {"rebuild", "append", "sync"}:
         raise ValueError(f"Unsupported mode: {mode}")
     if chunk_strategy not in {"fixed", "section", "hybrid"}:
@@ -319,7 +324,9 @@ def build_index(
         show_progress=True,
     )
 
+    t_load_docs_start = perf_counter()
     docs = txt_loader.load() + md_loader.load()
+    t_load_docs_end = perf_counter()
     if not docs:
         raise ValueError(f"No .txt or .md files found under {data_path}")
 
@@ -341,6 +348,9 @@ def build_index(
 
     source_hash_by_key = _build_current_source_hashes(docs)
     stats = _new_stats(f"{mode}:{chunk_strategy}", len(docs), chroma_dir)
+    stats["timings"] = [
+        {"stage": "load_docs", "seconds": t_load_docs_end - t_load_docs_start},
+    ]
 
     message = f"Preparing to index {len(docs)} documents with chunk_strategy={chunk_strategy}..."
     print(message)
@@ -349,8 +359,11 @@ def build_index(
 
     if mode == "rebuild":
         docs_to_index = docs
+        t_split_start = perf_counter()
         chunks = _split_docs(docs_to_index, chunk_strategy, splitter)
+        t_split_end = perf_counter()
         _attach_source_hash(chunks, source_hash_by_key)
+        stats["timings"].append({"stage": "split_docs", "seconds": t_split_end - t_split_start})
         message = f"Split into {len(chunks)} chunks, now computing embeddings..."
         print(message)
         if progress_callback:
@@ -360,7 +373,10 @@ def build_index(
             persist_directory=str(chroma_dir),
             embedding_function=embeddings,
         )
+        t_write_start = perf_counter()
         _add_chunks_in_batches(db, chunks, progress_callback=progress_callback)
+        t_write_end = perf_counter()
+        stats["timings"].append({"stage": "write_chunks", "seconds": t_write_end - t_write_start})
 
         message = "Embedding complete, persisting..."
         print(message)
@@ -376,10 +392,13 @@ def build_index(
         print(message)
         if progress_callback:
             progress_callback(message, 0.05)
+        t_load_db_start = perf_counter()
         db = Chroma(
             persist_directory=str(chroma_dir),
             embedding_function=embeddings,
         )
+        t_load_db_end = perf_counter()
+        stats["timings"].append({"stage": "load_chroma", "seconds": t_load_db_end - t_load_db_start})
         message = "Chroma database loaded."
         print(message)
         if progress_callback:
@@ -393,14 +412,21 @@ def build_index(
             added_keys = current_keys - existing_keys
             unchanged_keys = current_keys & existing_keys
             docs_to_index = _select_docs_by_keys(docs, added_keys)
+            t_split_start = perf_counter()
             chunks = _split_docs(docs_to_index, chunk_strategy, splitter) if docs_to_index else []
+            t_split_end = perf_counter()
+            if docs_to_index:
+                stats["timings"].append({"stage": "split_docs", "seconds": t_split_end - t_split_start})
             _attach_source_hash(chunks, source_hash_by_key)
             if chunks:
                 message = f"Append mode will write {len(chunks)} chunks."
                 print(message)
                 if progress_callback:
                     progress_callback(message, 0.18)
+                t_write_start = perf_counter()
                 _add_chunks_in_batches(db, chunks, progress_callback=progress_callback)
+                t_write_end = perf_counter()
+                stats["timings"].append({"stage": "write_chunks", "seconds": t_write_end - t_write_start})
 
             stats["docs_indexed"] = len(docs_to_index)
             stats["skipped_docs"] = len(docs) - len(docs_to_index)
@@ -427,7 +453,11 @@ def build_index(
 
             keys_to_index = added_keys | updated_keys
             docs_to_index = _select_docs_by_keys(docs, keys_to_index)
+            t_split_start = perf_counter()
             chunks = _split_docs(docs_to_index, chunk_strategy, splitter) if docs_to_index else []
+            t_split_end = perf_counter()
+            if docs_to_index:
+                stats["timings"].append({"stage": "split_docs", "seconds": t_split_end - t_split_start})
             _attach_source_hash(chunks, source_hash_by_key)
             if chunks:
                 message = (
@@ -436,7 +466,10 @@ def build_index(
                 print(message)
                 if progress_callback:
                     progress_callback(message, 0.18)
+                t_write_start = perf_counter()
                 _add_chunks_in_batches(db, chunks, progress_callback=progress_callback)
+                t_write_end = perf_counter()
+                stats["timings"].append({"stage": "write_chunks", "seconds": t_write_end - t_write_start})
 
             stats["docs_indexed"] = len(docs_to_index)
             stats["skipped_docs"] = len(docs) - len(docs_to_index)
@@ -447,6 +480,11 @@ def build_index(
             stats["chunks"] = len(chunks)
             stats["chunks_written"] = len(chunks)
             stats["deleted_chunks"] = deleted_chunks
+
+    total_seconds = perf_counter() - start_time
+    stats["total_seconds"] = total_seconds
+    docs_indexed = int(stats.get("docs_indexed", 0))
+    stats["seconds_per_doc"] = total_seconds / docs_indexed if docs_indexed > 0 else 0.0
 
     print(
         f"Indexed {stats['docs_indexed']}/{stats['docs_total']} documents into {stats['chunks_written']} chunks. "

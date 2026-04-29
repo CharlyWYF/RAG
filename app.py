@@ -12,9 +12,20 @@ import streamlit as st
 
 from scripts.clean_protocol_docs import process_file
 from src.config import load_settings
+from src.file_ops import (
+    cleaned_target_for,
+    is_chroma_ready,
+    is_cleaned,
+    list_processable_raw_docs,
+    list_raw_docs,
+    read_env_file,
+    resolve_source_path,
+    write_env_file,
+)
 from src.ingest import build_index
-from src.qa import PROMPT_TEMPLATE, _join_context, build_llm, health_check
-from src.retriever import get_retriever
+from src.presentation import build_preview_url, format_build_timing_rows, format_timing_rows
+from src.qa import health_check
+from src.qa_service import AnswerStreamHandler, execute_qa_flow
 
 ENV_PATH = Path(__file__).parent / ".env"
 EDITABLE_ENV_KEYS = [
@@ -43,119 +54,6 @@ QUERY_REWRITE_PROMPT = """你是检索查询优化助手。请根据用户问题
 用户问题：
 {question}
 """
-
-
-def _read_env_file(env_path: Path) -> dict[str, str]:
-    if not env_path.exists():
-        return {}
-
-    values: dict[str, str] = {}
-    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        values[key.strip()] = value.strip()
-    return values
-
-
-def _write_env_file(env_path: Path, updates: dict[str, str]) -> None:
-    existing_lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
-    updated_keys: set[str] = set()
-    new_lines: list[str] = []
-
-    for raw_line in existing_lines:
-        stripped = raw_line.strip()
-        if not stripped or stripped.startswith("#") or "=" not in raw_line:
-            new_lines.append(raw_line)
-            continue
-
-        key, _ = raw_line.split("=", 1)
-        normalized_key = key.strip()
-        if normalized_key in updates:
-            new_lines.append(f"{normalized_key}={updates[normalized_key]}")
-            updated_keys.add(normalized_key)
-        else:
-            new_lines.append(raw_line)
-
-    for key, value in updates.items():
-        if key not in updated_keys:
-            new_lines.append(f"{key}={value}")
-
-    env_path.write_text("\n".join(new_lines).rstrip() + "\n", encoding="utf-8")
-
-
-def _stage_label(stage: str) -> str:
-    labels = {
-        "load_settings": "加载配置",
-        "rewrite_query": "查询改写",
-        "init_retriever": "初始化检索器",
-        "retrieve": "向量检索",
-        "init_llm": "初始化大模型客户端",
-        "first_token": "首字响应时间",
-        "generate_first_token": "生成首字耗时",
-        "generate_answer": "生成回答",
-        "total": "总耗时",
-    }
-    return labels.get(stage, stage)
-
-
-def _format_timing_rows(timings: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for item in timings:
-        stage = str(item.get("stage", "unknown"))
-        if stage == "first_token":
-            continue
-        seconds = float(item.get("seconds", 0.0))
-        rows.append({"阶段": _stage_label(stage), "耗时(秒)": round(seconds, 3)})
-    return rows
-
-
-def _list_raw_docs(data_dir: Path) -> list[Path]:
-    files = list(data_dir.rglob("*.md")) + list(data_dir.rglob("*.txt"))
-    return sorted(files, key=lambda p: str(p.relative_to(data_dir)).lower())
-
-
-def _list_processable_raw_docs(data_dir: Path) -> list[Path]:
-    if not data_dir.exists():
-        return []
-    files = [
-        path
-        for path in data_dir.rglob("*")
-        if path.is_file() and path.suffix.lower() in RAW_DOC_SUFFIXES
-    ]
-    return sorted(files, key=lambda p: str(p.relative_to(data_dir)).lower())
-
-
-def _cleaned_target_for(raw_file: Path, raw_base: Path, cleaned_base: Path) -> Path:
-    return cleaned_base / raw_file.relative_to(raw_base).with_suffix(".md")
-
-
-def _is_cleaned(raw_file: Path, raw_base: Path, cleaned_base: Path) -> bool:
-    return _cleaned_target_for(raw_file, raw_base, cleaned_base).exists()
-
-
-def _is_chroma_ready(chroma_dir: Path) -> bool:
-    return (chroma_dir / "chroma.sqlite3").exists()
-
-
-def _resolve_source_path(file_path: str) -> Path:
-    normalized = file_path.replace("\\", "/").strip()
-    path = Path(normalized).expanduser()
-    if path.is_absolute():
-        return path.resolve()
-
-    path_str = path.as_posix()
-    project_root = Path(__file__).parent
-    if path_str.startswith("data/"):
-        return (project_root / path_str).resolve()
-
-    return (project_root / path).resolve()
-
-
-def _build_preview_url(file_path: str) -> str:
-    resolved = _resolve_source_path(file_path)
-    return f"/来源预览?path={quote(str(resolved))}"
 
 
 def _render_qa_tab(
@@ -200,139 +98,30 @@ def _render_qa_tab(
                         progress_bar.progress(pct)
                         break
 
-            on_progress("开始执行问答流程...")
-            status_text.info("答案生成中，请稍候...")
-            progress_bar.progress(5)
-
-            timings: list[dict[str, Any]] = []
-            t0 = perf_counter()
-
-            try:
-                on_progress("开始加载配置...")
-                t1_start = perf_counter()
-                settings = load_settings()
-                t1_end = perf_counter()
-                timings.append({"stage": "load_settings", "seconds": t1_end - t1_start})
-
-                on_progress("正在查询改写...")
-                t_rewrite_start = perf_counter()
-                rewrite_llm = build_llm(settings, model_override=settings.query_rewrite_model)
-                rewritten_raw = rewrite_llm.invoke(
-                    QUERY_REWRITE_PROMPT.format(question=question.strip())
-                ).content.strip()
-                rewritten_queries = list(dict.fromkeys(
-                    line.strip()
-                    for line in rewritten_raw.splitlines()
-                    if line.strip()
-                ))[:2]
-                t_rewrite_end = perf_counter()
-                timings.append({"stage": "rewrite_query", "seconds": t_rewrite_end - t_rewrite_start})
-
-                on_progress("正在初始化检索器...")
-                t2_start = perf_counter()
-                retriever = get_retriever()
-                t2_end = perf_counter()
-                timings.append({"stage": "init_retriever", "seconds": t2_end - t2_start})
-
-                on_progress("正在执行向量检索...")
-                t3_start = perf_counter()
-                retrieval_queries = [question.strip(), *rewritten_queries]
-                merged_docs: list[Any] = []
-                seen_chunks: set[tuple[str, str]] = set()
-                for retrieval_query in retrieval_queries:
-                    query_docs = retriever.invoke(retrieval_query)
-                    for doc in query_docs:
-                        source = str(getattr(doc, "metadata", {}).get("source", "unknown"))
-                        content = str(getattr(doc, "page_content", ""))
-                        chunk_key = (source, content)
-                        if chunk_key in seen_chunks:
-                            continue
-                        seen_chunks.add(chunk_key)
-                        merged_docs.append(doc)
-                docs = merged_docs
-                t3_end = perf_counter()
-                timings.append({"stage": "retrieve", "seconds": t3_end - t3_start})
-
-                context = _join_context(docs)
-                if not context.strip():
-                    total_seconds = perf_counter() - t0
-                    timings.append({"stage": "total", "seconds": total_seconds})
-                    result = {
-                        "answer": "资料不足以确定，请先补充相关协议文档。",
-                        "contexts": [],
-                        "sources": [],
-                        "rewritten_queries": rewritten_queries,
-                        "timings": timings,
-                        "total_seconds": total_seconds,
-                        "logs": [
-                            "load_settings",
-                            "rewrite_query",
-                            "init_retriever",
-                            "retrieve",
-                            "no_context",
-                        ],
-                    }
-                else:
-                    on_progress("正在初始化大模型客户端...")
-                    t4_start = perf_counter()
-                    llm = build_llm(settings)
-                    t4_end = perf_counter()
-                    timings.append({"stage": "init_llm", "seconds": t4_end - t4_start})
-
-                    prompt = PROMPT_TEMPLATE.format(question=question.strip(), context=context)
-                    answer_container = st.container(border=True)
-                    with answer_container:
+            class StreamlitAnswerHandler(AnswerStreamHandler):
+                def __init__(self) -> None:
+                    self.answer_container = st.container(border=True)
+                    with self.answer_container:
                         st.markdown("### 最终回答")
                         st.caption(f"问题：{question.strip()}")
-                        streamed_answer_placeholder = st.empty()
+                        self.placeholder = st.empty()
+                    self.collected_chunks: list[str] = []
 
-                    on_progress("正在生成最终回答...")
-                    t5_start = perf_counter()
-                    first_token_seconds: float | None = None
-                    chunks: list[str] = []
-                    for chunk in llm.stream(prompt):
-                        chunk_text = getattr(chunk, "content", "")
-                        if isinstance(chunk_text, list):
-                            chunk_text = "".join(str(part) for part in chunk_text)
-                        if not chunk_text:
-                            continue
-                        if first_token_seconds is None:
-                            first_token_seconds = perf_counter() - t0
-                            with perf_placeholder.container():
-                                st.metric("首字响应时间", f"{first_token_seconds:.3f} 秒")
-                        chunks.append(str(chunk_text))
-                        streamed_answer_placeholder.write("".join(chunks))
-                    t5_end = perf_counter()
-                    if first_token_seconds is not None:
-                        timings.append({"stage": "first_token", "seconds": first_token_seconds})
-                        timings.append({"stage": "generate_first_token", "seconds": first_token_seconds - sum(
-                            float(item.get("seconds", 0.0))
-                            for item in timings
-                            if str(item.get("stage", "")) in {"load_settings", "rewrite_query", "init_retriever", "retrieve", "init_llm"}
-                        )})
-                    timings.append({"stage": "generate_answer", "seconds": t5_end - t5_start})
+                def on_chunk(self, text: str) -> None:
+                    self.collected_chunks.append(text)
+                    self.placeholder.write("".join(self.collected_chunks))
 
-                    total_seconds = perf_counter() - t0
-                    timings.append({"stage": "total", "seconds": total_seconds})
+                def on_first_token(self, seconds: float) -> None:
+                    with perf_placeholder.container():
+                        st.metric("首字响应时间", f"{seconds:.3f} 秒")
 
-                    result = {
-                        "answer": "".join(chunks),
-                        "contexts": [doc.page_content for doc in docs],
-                        "sources": [str(doc.metadata.get("source", "unknown")) for doc in docs],
-                        "rewritten_queries": rewritten_queries,
-                        "timings": timings,
-                        "total_seconds": total_seconds,
-                        "logs": [
-                            "load_settings",
-                            "rewrite_query",
-                            "init_retriever",
-                            "retrieve",
-                            "init_llm",
-                            "first_token" if first_token_seconds is not None else "no_first_token",
-                            "generate_answer",
-                            "done",
-                        ],
-                    }
+            try:
+                handler = StreamlitAnswerHandler()
+                result = execute_qa_flow(
+                    question=question.strip(),
+                    progress_callback=on_progress,
+                    stream_handler=handler,
+                )
             except Exception as exc:
                 on_progress("执行失败。")
                 main_status.error(f"运行失败：{exc}")
@@ -353,7 +142,7 @@ def _render_qa_tab(
 
     timings = stored_result.get("timings", [])
     total_seconds = float(stored_result.get("total_seconds", 0.0))
-    timing_rows = _format_timing_rows(timings)
+    timing_rows = format_timing_rows(timings)
     first_token_seconds = next(
         (
             float(item.get("seconds", 0.0))
@@ -392,8 +181,8 @@ def _render_qa_tab(
             st.write("无上下文。")
         for idx, ctx in enumerate(contexts, start=1):
             source_name = str(sources[idx - 1]) if idx - 1 < len(sources) else "unknown"
-            resolved_source = _resolve_source_path(source_name) if source_name != "unknown" else None
-            preview_url = _build_preview_url(source_name) if source_name != "unknown" else ""
+            resolved_source = resolve_source_path(source_name, Path(__file__).parent) if source_name != "unknown" else None
+            preview_url = build_preview_url(source_name, Path(__file__).parent) if source_name != "unknown" else ""
             with st.container(border=True):
                 st.caption(f"片段 {idx} / {len(contexts)}")
                 if source_name != "unknown":
@@ -413,8 +202,8 @@ def _render_qa_tab(
             st.write("无来源。")
         else:
             for src in unique_sources:
-                resolved_src = _resolve_source_path(src)
-                preview_url = _build_preview_url(src)
+                resolved_src = resolve_source_path(src, Path(__file__).parent)
+                preview_url = build_preview_url(src, Path(__file__).parent)
                 src_col, action_col = st.columns([5, 1])
                 with src_col:
                     st.write(src)
@@ -429,8 +218,8 @@ def _render_raw_docs_tab() -> None:
 
     raw_dir = RAW_DOCS_DIR
     cleaned_dir = CLEANED_DOCS_DIR
-    docs = _list_processable_raw_docs(raw_dir)
-    cleaned_count = sum(1 for doc in docs if _is_cleaned(doc, raw_dir, cleaned_dir))
+    docs = list_processable_raw_docs(raw_dir)
+    cleaned_count = sum(1 for doc in docs if is_cleaned(doc, raw_dir, cleaned_dir))
 
     st.markdown("### 目录与状态")
 
@@ -511,7 +300,7 @@ def _render_raw_docs_tab() -> None:
         rows = []
         for doc in docs:
             rel = doc.relative_to(raw_dir)
-            cleaned_target = _cleaned_target_for(doc, raw_dir, cleaned_dir)
+            cleaned_target = cleaned_target_for(doc, raw_dir, cleaned_dir)
             stat = doc.stat()
             rows.append(
                 {
@@ -532,7 +321,7 @@ def _render_raw_docs_tab() -> None:
             st.caption("单文件清洗")
             selected_raw = st.selectbox("选择要清洗的原始文件", options=options, key="clean_single_raw")
             selected_path = raw_dir / selected_raw
-            cleaned_target = _cleaned_target_for(selected_path, raw_dir, cleaned_dir)
+            cleaned_target = cleaned_target_for(selected_path, raw_dir, cleaned_dir)
             status_placeholder = st.empty()
             last_processed = st.session_state.get("raw_docs_last_processed")
             should_show_existing_info = cleaned_target.exists()
@@ -574,7 +363,7 @@ def _render_raw_docs_tab() -> None:
         st.info("当前 raw 目录下暂无可处理文件。")
 
 
-def _render_kb_tab() -> None:
+def _render_kb_tab(progress_placeholder, log_placeholder, perf_placeholder) -> None:
     st.subheader("知识库与向量库管理")
 
     try:
@@ -586,8 +375,8 @@ def _render_kb_tab() -> None:
     data_dir = Path(settings.data_dir)
     chroma_dir = Path(settings.chroma_dir)
 
-    docs = _list_raw_docs(data_dir) if data_dir.exists() else []
-    chroma_ready = _is_chroma_ready(chroma_dir)
+    docs = list_raw_docs(data_dir) if data_dir.exists() else []
+    chroma_ready = is_chroma_ready(chroma_dir)
 
     st.markdown("### 当前配置")
 
@@ -716,18 +505,18 @@ def _render_kb_tab() -> None:
 
     if st.button("开始构建向量库", type="primary", width="stretch"):
         build_progress_bar = st.progress(0, text="等待开始...")
-        build_progress_placeholder = st.empty()
-        build_log_placeholder = st.empty()
+        build_status_placeholder = st.empty()
         build_logs: list[str] = []
 
         def on_build_progress(message: str, progress: float | None = None) -> None:
             timestamp = datetime.now().strftime("%H:%M:%S")
             build_logs.append(f"[{timestamp}] {message}")
-            build_progress_placeholder.info(message)
+            build_status_placeholder.info(message)
+            progress_placeholder.info(message)
             if progress is not None:
                 safe_progress = max(0.0, min(progress, 1.0))
                 build_progress_bar.progress(safe_progress, text=f"{int(safe_progress * 100)}%")
-            build_log_placeholder.code("\n".join(build_logs), language="text")
+            log_placeholder.code("\n".join(build_logs), language="text")
 
         with st.spinner("正在构建向量库..."):
             try:
@@ -739,9 +528,17 @@ def _render_kb_tab() -> None:
                 )
             except Exception as exc:
                 on_build_progress("向量库构建失败。", 1.0)
+                perf_placeholder.error("构建耗时统计不可用")
                 st.error(f"构建失败：{exc}")
             else:
                 on_build_progress("向量库构建完成。", 1.0)
+                with perf_placeholder.container():
+                    st.metric("总耗时", f"{float(stats.get('total_seconds', 0.0)):.3f} 秒")
+                    st.metric("平均每文档耗时", f"{float(stats.get('seconds_per_doc', 0.0)):.3f} 秒")
+                    timing_items = stats.get("timings", [])
+                    if isinstance(timing_items, list) and timing_items:
+                        timing_rows = format_build_timing_rows(timing_items)
+                        st.dataframe(timing_rows, width="stretch", hide_index=True)
 
                 c7, c8, c9, c10 = st.columns(4)
                 with c7:
@@ -802,7 +599,7 @@ def _render_config_tab() -> None:
     st.subheader("系统配置")
     st.caption("查看当前生效配置，并可视化编辑 `.env` 中的关键字段。")
 
-    env_values = _read_env_file(ENV_PATH)
+    env_values = read_env_file(ENV_PATH)
 
     try:
         settings = load_settings()
@@ -883,7 +680,7 @@ def _render_config_tab() -> None:
             "OPENAI_BASE_URL": openai_base_url.strip(),
             "OPENAI_API_KEY": openai_api_key.strip(),
         }
-        _write_env_file(ENV_PATH, updates)
+        write_env_file(ENV_PATH, updates)
         st.success("`.env` 已更新，正在刷新页面。")
         st.rerun()
 
@@ -921,17 +718,29 @@ with st.sidebar:
     perf_placeholder.caption("暂无耗时数据")
 
 if test_api:
+    api_logs = ["开始测试 API 连通性..."]
+    progress_placeholder.info("正在测试 Chat 模型...")
+    log_placeholder.code("\n".join(api_logs), language="text")
     with st.spinner("正在测试 API 连通性..."):
         try:
             status = health_check()
         except Exception as exc:
             api_status_placeholder.error("API 连通性测试失败")
             api_detail_placeholder.code(str(exc), language="text")
+            progress_placeholder.error("API 测试失败")
         else:
+            api_logs.append("Chat 模型测试完成")
+            api_logs.append("Embedding 模型测试完成")
+            progress_placeholder.success("API 连通性测试完成")
+            log_placeholder.code("\n".join(api_logs), language="text")
             api_status_placeholder.success("API 连通性正常")
             api_detail_placeholder.caption(
                 f"chat={status['chat_model']} | embedding={status['embedding_model']} | base_url={status['base_url']}"
             )
+            with perf_placeholder.container():
+                st.metric("Chat 耗时", f"{float(status['chat_seconds']):.3f} 秒")
+                st.metric("Embedding 耗时", f"{float(status['embedding_seconds']):.3f} 秒")
+                st.metric("总耗时", f"{float(status['total_seconds']):.3f} 秒")
 
 tab_qa, tab_raw_docs, tab_kb, tab_config = st.tabs([
     "问答",
@@ -947,7 +756,7 @@ with tab_raw_docs:
     _render_raw_docs_tab()
 
 with tab_kb:
-    _render_kb_tab()
+    _render_kb_tab(progress_placeholder, log_placeholder, perf_placeholder)
 
 with tab_config:
     _render_config_tab()
