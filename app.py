@@ -396,28 +396,38 @@ def _render_kb_tab(progress_placeholder, log_placeholder, perf_placeholder) -> N
         st.info("hybrid 通常更适合清洗后的 RFC 文档，可兼顾结构信息与 chunk 长度控制。")
 
     if st.button("开始构建向量库", type="primary", width="stretch"):
-        build_progress_bar = st.progress(0, text="等待开始...")
-        build_status_placeholder = st.empty()
+        build_logs: list[str] = []
+
+        with st.container():
+            build_status_placeholder = st.empty()
+            build_progress_bar = st.progress(0)
 
         def on_build_progress(message: str, progress: float | None = None) -> None:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            build_logs.append(f"[{timestamp}] {message}")
             build_status_placeholder.info(message)
             progress_placeholder.info(message)
+            log_placeholder.code("\n".join(build_logs), language="text")
             if progress is not None:
                 safe_progress = max(0.0, min(progress, 1.0))
-                build_progress_bar.progress(safe_progress, text=f"{int(safe_progress * 100)}%")
+                build_progress_bar.progress(safe_progress)
+
+        on_build_progress("开始执行向量库构建...", 0.01)
 
         with st.spinner("正在构建向量库..."):
-            stats, build_logs, error_message = run_ingest(
+            stats, _, error_message = run_ingest(
                 mode=mode,
                 chunk_strategy=chunk_strategy,
                 progress_callback=on_build_progress,
             )
-            log_placeholder.code("\n".join(build_logs), language="text")
             if error_message is not None:
                 perf_placeholder.error("构建耗时统计不可用")
                 st.error(f"构建失败：{error_message}")
             else:
                 assert stats is not None
+                build_progress_bar.progress(1.0)
+                build_status_placeholder.success("构建完成。")
+                progress_placeholder.success("向量库构建完成")
                 render_build_stats(stats, chunk_strategy, perf_placeholder)
 
 
