@@ -7,7 +7,7 @@ __pycache__/
 .env
 
 # Vector store
-# chroma_db/
+chroma_db/
 
 # Streamlit
 .streamlit/
