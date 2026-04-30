@@ -1,0 +1,113 @@
+{
+  "generated_at": "2026-05-01T00:28:05",
+  "total_questions": 15,
+  "protocol_distribution": {
+    "DNS": 3,
+    "TLS/HTTP": 2,
+    "HTTP/TLS": 1,
+    "HTTP": 2,
+    "TCP/UDP": 1,
+    "UDP": 1,
+    "TCP": 1,
+    "IP": 2,
+    "ARP": 1,
+    "综合": 1
+  },
+  "question_type_distribution": {
+    "口语化机制类": 6,
+    "口语化定义类": 2,
+    "口语化对比类": 3,
+    "口语化综合类": 1,
+    "口语化流程类": 1,
+    "证据不足类": 2
+  },
+  "section_distribution": {
+    "conversational_questions": 15
+  },
+  "avg_total_seconds": 9.15967104746572,
+  "avg_first_token_seconds": 6.165441225134418,
+  "avg_load_settings_seconds": 0.0012260112014094678,
+  "avg_init_retriever_seconds": 0.04733663339963338,
+  "avg_rewrite_seconds": 1.3230641138002588,
+  "avg_retrieve_seconds": 2.9908376388659237,
+  "avg_init_llm_seconds": 0.0005079194651140521,
+  "avg_generate_answer_seconds": 4.796637552667137,
+  "avg_unique_source_count": 3.4,
+  "target_hit_count": 13,
+  "target_hit_rate": 0.8666666666666667,
+  "refusal_expected_count": 2,
+  "refusal_triggered_count": 1,
+  "refusal_success_rate": 0.5,
+  "by_protocol": {
+    "DNS": {
+      "count": 3,
+      "avg_total_seconds": 9.913255846996131,
+      "avg_first_token_seconds": 6.054653860999679,
+      "avg_unique_source_count": 2.6666666666666665,
+      "target_hit_rate": 1.0
+    },
+    "TLS/HTTP": {
+      "count": 2,
+      "avg_total_seconds": 7.686726104500849,
+      "avg_first_token_seconds": 6.155263062501035,
+      "avg_unique_source_count": 3.0,
+      "target_hit_rate": 1.0
+    },
+    "HTTP/TLS": {
+      "count": 1,
+      "avg_total_seconds": 8.697854000005464,
+      "avg_first_token_seconds": 6.048088542003825,
+      "avg_unique_source_count": 7.0,
+      "target_hit_rate": 1.0
+    },
+    "HTTP": {
+      "count": 2,
+      "avg_total_seconds": 9.304979874996206,
+      "avg_first_token_seconds": 5.70323450000069,
+      "avg_unique_source_count": 2.0,
+      "target_hit_rate": 1.0
+    },
+    "TCP/UDP": {
+      "count": 1,
+      "avg_total_seconds": 8.668124292002176,
+      "avg_first_token_seconds": 5.445646750005835,
+      "avg_unique_source_count": 3.0,
+      "target_hit_rate": 1.0
+    },
+    "UDP": {
+      "count": 1,
+      "avg_total_seconds": 8.350371333996009,
+      "avg_first_token_seconds": 5.685896625000169,
+      "avg_unique_source_count": 5.0,
+      "target_hit_rate": 0.0
+    },
+    "TCP": {
+      "count": 1,
+      "avg_total_seconds": 11.714230584002507,
+      "avg_first_token_seconds": 9.088174666998384,
+      "avg_unique_source_count": 2.0,
+      "target_hit_rate": 1.0
+    },
+    "IP": {
+      "count": 2,
+      "avg_total_seconds": 9.174635438001133,
+      "avg_first_token_seconds": 4.951454500500404,
+      "avg_unique_source_count": 2.5,
+      "target_hit_rate": 1.0
+    },
+    "ARP": {
+      "count": 1,
+      "avg_total_seconds": 9.77156383399415,
+      "avg_first_token_seconds": 7.215120834000118,
+      "avg_unique_source_count": 3.0,
+      "target_hit_rate": 1.0
+    },
+    "综合": {
+      "count": 1,
+      "avg_total_seconds": 8.12047129200073,
+      "avg_first_token_seconds": 7.214825250004651,
+      "avg_unique_source_count": 8.0,
+      "target_hit_rate": 0.0
+    }
+  }
+}

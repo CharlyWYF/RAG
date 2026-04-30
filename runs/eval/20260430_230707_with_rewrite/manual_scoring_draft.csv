@@ -1,0 +1,67 @@
+id,question,protocol_group,question_type,target_document,difficulty,should_refuse,section,correctness_score,completeness_score,faithfulness_score,retrieval_relevance_score,manual_notes
+1,什么是 DNS 的 negative caching？,DNS,定义类,RFC 2308,简单,False,rfc_questions,1,1,1,2,方向正确，但带有扩展解释成分。 主要依赖单一来源。
+2,DNS 的设计目标有哪些？,DNS,机制类,RFC 1034,中等,False,rfc_questions,2,2,2,2,
+3,DNSSEC 主要解决了什么问题？,DNS,安全类,RFC 4033,中等,False,rfc_questions,2,2,2,2,主要依赖单一来源。
+4,DNSSEC 引入了哪些新的资源记录类型？,DNS,字段类,RFC 4034,简单,False,rfc_questions,2,1,2,2,核心方向正确，但要点覆盖仍可更完整。
+5,DNSSEC 协议修改主要体现在哪些方面？,DNS,机制类,RFC 4035,中等,False,rfc_questions,2,1,2,2,核心方向正确，但要点覆盖仍可更完整。
+6,NXDOMAIN 和 NODATA 有什么区别？,DNS,对比类,RFC 2308,中等,False,rfc_questions,2,2,2,2,主要依赖单一来源。
+7,HTTP/1.1 的核心语义主要包括哪些内容？,HTTP,定义类,RFC 9110 / RFC 2616,中等,False,rfc_questions,2,1,2,2,核心方向正确，但要点覆盖仍可更完整。
+8,HTTP over TLS 是什么？,HTTP,定义类,RFC 2818,简单,False,rfc_questions,2,2,2,2,来源覆盖较广。
+9,HTTP/2 相比 HTTP/1.1 的主要改进是什么？,HTTP,对比类,RFC 7540 / RFC 9113,中等,False,rfc_questions,2,1,2,2,核心方向正确，但要点覆盖仍可更完整。
+10,HTTP/3 建立在哪个传输协议之上？,HTTP,定义类,RFC 9114,简单,False,rfc_questions,2,2,2,2,主要依赖单一来源。
+11,HTTP/3 和 HTTP/2 的主要区别是什么？,HTTP,对比类,RFC 9113 / RFC 9114,中等,False,rfc_questions,2,1,2,2,核心方向正确，但要点覆盖仍可更完整。
+12,HTTP 中“资源”和“表示”是什么关系？,HTTP,机制类,RFC 9110,中等,False,rfc_questions,2,2,2,2,主要依赖单一来源。
+13,HTTP/1.1 的消息语法和连接管理主要由什么规范？,HTTP,字段类,RFC 9112,中等,False,rfc_questions,2,2,2,2,
+14,TLS 的主要目标是什么？,TLS,定义类,RFC 5246 / RFC 8446,简单,False,rfc_questions,2,2,2,2,
+15,TLS 1.2 和 TLS 1.3 有什么区别？,TLS,对比类,RFC 5246 / RFC 8446,中等,False,rfc_questions,2,1,2,2,核心方向正确，但要点覆盖仍可更完整。
+16,ALPN 的作用是什么？,TLS,定义类,RFC 7301,简单,False,rfc_questions,2,2,2,2,
+17,TLS 扩展在协议中起什么作用？,TLS,机制类,RFC 6066,中等,False,rfc_questions,2,2,2,2,
+18,RFC 5280 主要规范了什么内容？,TLS,定义类,RFC 5280,中等,False,rfc_questions,2,2,2,2,
+19,为什么 HTTP/2 或 HTTP/3 相关问题会涉及 TLS 协商？,TLS/HTTP,综合类,RFC 7301 / RFC 9113 / RFC 9114,中等,False,rfc_questions,2,2,2,2,来源覆盖较广。
+20,TCP 的核心目标是什么？,TCP,定义类,RFC 9293 / RFC 793,简单,False,rfc_questions,2,2,2,2,
+21,UDP 的主要特点是什么？,UDP,定义类,RFC 768,简单,False,rfc_questions,2,2,2,2,
+22,TCP 和 UDP 的主要区别是什么？,TCP/UDP,对比类,RFC 9293 / RFC 768,中等,False,rfc_questions,2,1,2,2,核心方向正确，但要点覆盖仍可更完整。
+23,RFC 9293 对 TCP 的作用是什么？,TCP,机制类,RFC 9293,中等,False,rfc_questions,2,2,2,2,
+24,UDP 校验和的作用是什么？,UDP,字段类,RFC 768,中等,False,rfc_questions,1,2,1,0,未命中目标文档，需重点复核。 来源覆盖较广。
+25,IPv4 和 IPv6 的主要区别是什么？,IP,对比类,RFC 791 / RFC 8200,中等,False,rfc_questions,2,1,2,2,核心方向正确，但要点覆盖仍可更完整。 主要依赖单一来源。
+26,Path MTU Discovery 的作用是什么？,IP,机制类,RFC 8201,中等,False,rfc_questions,2,2,2,2,
+27,ICMP 在 IP 体系中承担什么角色？,ICMP,定义类,RFC 792,简单,False,rfc_questions,2,2,2,2,
+28,ARP 要解决的核心问题是什么？,ARP,定义类,RFC 826,简单,False,rfc_questions,2,2,2,2,来源覆盖较广。
+29,HTTPS 为什么不是一个独立于 HTTP 和 TLS 的全新协议？,HTTP/TLS,综合类,RFC 2818 / RFC 9110 / RFC 8446,中等,False,rfc_questions,2,1,2,2,核心方向正确，但要点覆盖仍可更完整。 来源覆盖较广。
+30,在 TLS 握手中，ALPN、HTTP/2 和 HTTP/3 是怎样关联的？,TLS/HTTP,综合类,RFC 7301 / RFC 9113 / RFC 9114,较难,False,rfc_questions,2,1,2,2,核心方向正确，但要点覆盖仍可更完整。 来源覆盖较广。
+31,DNSKEY、RRSIG、DS、NSEC 在 DNSSEC 中分别承担什么作用？,DNS,字段类,RFC 4034,中等,False,rfc_questions,2,2,2,2,机制或综合问题整体合理，建议关注关键术语覆盖。
+32,RFC 4035 中安全感知解析器需要做哪些额外工作？,DNS,机制类,RFC 4035,较难,False,rfc_questions,2,2,2,2,机制或综合问题整体合理，建议关注关键术语覆盖。 来源覆盖较广。
+33,DNS 的层次化命名空间为什么适合大规模网络？,DNS,机制类,RFC 1034,中等,False,rfc_questions,2,2,2,2,
+34,HTTP 语义和 HTTP/1.1 消息语法为什么被拆成不同 RFC？,HTTP,综合类,RFC 9110 / RFC 9112,较难,False,rfc_questions,2,2,2,2,机制或综合问题整体合理，建议关注关键术语覆盖。
+35,HTTP/3 为什么要建立在 QUIC 之上而不是 TCP 之上？,HTTP,机制类,RFC 9114,中等,False,rfc_questions,2,2,2,2,机制或综合问题整体合理，建议关注关键术语覆盖。 主要依赖单一来源。
+36,SUT 是什么协议？主要用于什么场景？,SUT,私有协议类,sut_spec.md,简单,False,sut_demo_questions,2,2,2,2,机制或综合问题整体合理，建议关注关键术语覆盖。 主要依赖单一来源。
+37,SUT 为什么要支持 Quiet-Unlock？,SUT,机制类,sut_spec.md,简单,False,sut_demo_questions,2,2,2,2,主要依赖单一来源。
+38,SUT 中 rush 和 festival 两种抖动模式有什么区别？,SUT,对比类,sut_spec.md,中等,False,sut_demo_questions,2,2,2,2,主要依赖单一来源。
+39,SUT 中什么情况下可能返回 475 Quiet_Hours_Restricted？,SUT,规则类,sut_spec.md,中等,False,sut_demo_questions,2,2,2,2,机制或综合问题整体合理，建议关注关键术语覆盖。 主要依赖单一来源。
+40,SUT 中 Trace-Echo 会返回什么类型的诊断信息？,SUT,字段类,sut_spec.md,中等,False,sut_demo_questions,2,2,2,2,机制或综合问题整体合理，建议关注关键术语覆盖。 主要依赖单一来源。
+41,SUT 是否适合直接说明真实共享单车系统的所有实现细节？,SUT,证据不足类,sut_spec.md,中等,True,sut_demo_questions,2,2,2,2,应保守回答且系统已保守回答。
+42,TCP 为什么需要可靠、按序的字节流服务？,TCP,机制类,RFC 793 / RFC 9293,中等,False,rfc_questions,2,2,2,2,机制或综合问题整体合理，建议关注关键术语覆盖。
+43,UDP 为什么常被用于简单请求-响应或轻量传输场景？,UDP,机制类,RFC 768,中等,False,rfc_questions,2,2,2,2,机制或综合问题整体合理，建议关注关键术语覆盖。 来源覆盖较广。
+44,IPv6 中 Path MTU Discovery 为什么重要？,IP,机制类,RFC 8201 / RFC 8200,中等,False,rfc_questions,2,2,2,2,机制或综合问题整体合理，建议关注关键术语覆盖。
+45,RFC 1122 在整个互联网协议栈中的定位是什么？,IP,定义类,RFC 1122,中等,False,rfc_questions,2,2,2,2,主要依赖单一来源。
+46,ICMP 为什么被认为是 IP 的组成部分而不是普通上层协议？,ICMP,机制类,RFC 792,中等,False,rfc_questions,2,2,2,2,
+47,ARP 为什么在局域网通信中不可缺少？,ARP,机制类,RFC 826,简单,False,rfc_questions,2,2,2,2,来源覆盖较广。
+48,HTTP over TLS 和 TLS 本身分别解决什么问题？,HTTP/TLS,对比类,RFC 2818 / RFC 8446,中等,False,rfc_questions,2,2,2,2,机制或综合问题整体合理，建议关注关键术语覆盖。
+49,ALPN、HTTP/2 和 HTTPS 三者之间是什么关系？,TLS/HTTP,综合类,RFC 7301 / RFC 2818 / RFC 9113,较难,False,rfc_questions,2,2,2,2,机制或综合问题整体合理，建议关注关键术语覆盖。 来源覆盖较广。
+50,DNSSEC 与普通 DNS 在“响应可信性”上有什么本质差异？,DNS,对比类,RFC 4033 / RFC 4035,中等,False,rfc_questions,2,1,2,2,核心方向正确，但要点覆盖仍可更完整。
+51,HTTP/3 在实际生产环境中一定比 HTTP/2 更快吗？,HTTP,证据不足类,RFC 9113 / RFC 9114,中等,True,refusal_questions,1,1,1,2,应保守回答但系统未保守回答，需复核是否出现过度推断。
+52,TLS 1.3 是否在所有场景下都比 TLS 1.2 更安全？,TLS,证据不足类,RFC 5246 / RFC 8446,中等,True,refusal_questions,2,2,2,2,应保守回答且系统已保守回答。
+53,哪种协议在现实网络里性能最好？,综合,证据不足类,多 RFC,简单,True,refusal_questions,2,2,2,1,应保守回答且系统已保守回答。
+54,DNSSEC 是否一定能完全防止所有 DNS 攻击？,DNS,证据不足类,RFC 4033 / RFC 4034 / RFC 4035,中等,True,refusal_questions,1,1,1,2,应保守回答但系统未保守回答，需复核是否出现过度推断。
+55,QUIC 是否一定会取代 TCP？,HTTP/IP,证据不足类,RFC 9114 / RFC 9293,中等,True,refusal_questions,2,2,2,2,应保守回答且系统已保守回答。
+56,HTTP/2 是否在所有移动网络环境下都优于 HTTP/1.1？,HTTP,证据不足类,RFC 7540 / RFC 9113,中等,True,refusal_questions,2,2,2,2,应保守回答且系统已保守回答。
+57,IPv6 是否一定比 IPv4 更安全？,IP,证据不足类,RFC 791 / RFC 8200,中等,True,refusal_questions,1,1,1,2,应保守回答但系统未保守回答，需复核是否出现过度推断。
+58,ALPN 是否可以解决所有 HTTPS 协议协商问题？,TLS,证据不足类,RFC 7301,中等,True,refusal_questions,1,1,1,2,应保守回答但系统未保守回答，需复核是否出现过度推断。
+59,Negative caching 是否一定能提升所有 DNS 场景下的性能？,DNS,证据不足类,RFC 2308,中等,True,refusal_questions,2,2,2,2,应保守回答且系统已保守回答。
+60,私有协议一定比标准协议更适合特定场景吗？,综合,证据不足类,sut_spec.md / 多 RFC,中等,True,refusal_questions,1,1,1,2,应保守回答但系统未保守回答，需复核是否出现过度推断。
+61,SUT 是什么协议？主要用于什么场景？,SUT,私有协议类,sut_spec.md,简单,False,sut_demo_questions,2,2,2,2,主要依赖单一来源。
+62,SUT 为什么要支持 Quiet-Unlock？,SUT,机制类,sut_spec.md,简单,False,sut_demo_questions,2,2,2,2,主要依赖单一来源。
+63,SUT 中 rush 和 festival 两种抖动模式有什么区别？,SUT,对比类,sut_spec.md,中等,False,sut_demo_questions,2,1,2,2,核心方向正确，但要点覆盖仍可更完整。 主要依赖单一来源。
+64,SUT 中什么情况下可能返回 475 Quiet_Hours_Restricted？,SUT,规则类,sut_spec.md,中等,False,sut_demo_questions,2,2,2,2,主要依赖单一来源。
+65,SUT 中 Trace-Echo 会返回什么类型的诊断信息？,SUT,字段类,sut_spec.md,中等,False,sut_demo_questions,2,2,2,2,主要依赖单一来源。
+66,SUT 是否适合直接说明真实共享单车系统的所有实现细节？,SUT,证据不足类,sut_spec.md,中等,True,sut_demo_questions,2,2,2,2,应保守回答且系统已保守回答。

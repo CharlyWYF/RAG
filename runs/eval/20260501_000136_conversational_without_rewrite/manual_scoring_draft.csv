@@ -1,0 +1,16 @@
+id,question,protocol_group,question_type,target_document,difficulty,should_refuse,section,correctness_score,completeness_score,faithfulness_score,retrieval_relevance_score,manual_notes
+C1,DNS 是怎么知道一个网站对应哪个地址的？,DNS,口语化机制类,RFC 1034 / RFC 1035,中等,False,conversational_questions,2,2,2,2,主要依赖单一来源。 需重点关注是否将口语表达成功映射为标准协议概念。
+C2,DNSSEC 是不是就是给 DNS 加个签名防止被篡改？,DNS,口语化定义类,RFC 4033 / RFC 4034 / RFC 4035,中等,False,conversational_questions,2,2,2,2,主要依赖单一来源。
+C3,如果一个域名压根不存在，DNS 为什么还能很快告诉我没有？,DNS,口语化机制类,RFC 2308,中等,False,conversational_questions,2,2,2,2,
+C4,为啥有时候网站访问会先搞一堆加密握手？,TLS/HTTP,口语化机制类,RFC 2818 / RFC 5246 / RFC 8446,中等,False,conversational_questions,2,2,2,2,需重点关注是否将口语表达成功映射为标准协议概念。
+C5,HTTPS 比 HTTP 多做了什么？,HTTP/TLS,口语化对比类,RFC 2818 / RFC 9110 / RFC 8446,简单,False,conversational_questions,1,2,1,0,未命中目标文档，需重点复核。
+C6,浏览器怎么知道该跟服务器说 HTTP/2 还是 HTTP/3？,TLS/HTTP,口语化综合类,RFC 7301 / RFC 9113 / RFC 9114,较难,False,conversational_questions,1,1,2,2,非拒答题但出现保守回答。 需重点关注是否将口语表达成功映射为标准协议概念。
+C7,HTTP/3 为啥不继续用 TCP 了？,HTTP,口语化机制类,RFC 9114,中等,False,conversational_questions,2,2,2,2,主要依赖单一来源。
+C8,TCP 为什么看起来比 UDP 麻烦这么多？,TCP/UDP,口语化对比类,RFC 9293 / RFC 768,中等,False,conversational_questions,2,2,2,2,需重点关注是否将口语表达成功映射为标准协议概念。
+C9,UDP 为什么很多时候反而更适合快速发数据？,UDP,口语化机制类,RFC 768,中等,False,conversational_questions,1,2,1,0,未命中目标文档，需重点复核。
+C10,TCP 那个“三次握手”本质上是在干嘛？,TCP,口语化流程类,RFC 793 / RFC 9293,中等,False,conversational_questions,2,2,2,2,需重点关注是否将口语表达成功映射为标准协议概念。
+C11,IPv6 到底比 IPv4 改了些什么最关键的地方？,IP,口语化对比类,RFC 791 / RFC 8200,中等,False,conversational_questions,2,2,2,2,主要依赖单一来源。 需重点关注是否将口语表达成功映射为标准协议概念。
+C12,为什么网络里有时候还要专门探测一下路径能发多大的包？,IP,口语化机制类,RFC 8201,中等,False,conversational_questions,2,2,2,2,需重点关注是否将口语表达成功映射为标准协议概念。
+C13,ARP 是不是就是“问一下谁是这个 IP”？,ARP,口语化定义类,RFC 826,简单,False,conversational_questions,2,2,2,2,
+C14,如果我问一个很模糊的问题，系统是不是更容易答偏？,综合,证据不足类,多 RFC,中等,True,conversational_questions,1,1,1,1,应保守回答但系统未保守回答。
+C15,HTTP/3 在现实里一定就比 HTTP/2 体验好吗？,HTTP,证据不足类,RFC 9113 / RFC 9114,中等,True,conversational_questions,2,2,2,2,应保守回答且系统已保守回答。

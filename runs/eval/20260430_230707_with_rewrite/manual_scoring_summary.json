@@ -1,0 +1,205 @@
+{
+  "generated_at": "2026-04-30T23:21:23",
+  "total_questions": 66,
+  "protocol_distribution": {
+    "DNS": 12,
+    "HTTP": 11,
+    "TLS": 7,
+    "TLS/HTTP": 3,
+    "TCP": 3,
+    "UDP": 3,
+    "TCP/UDP": 1,
+    "IP": 5,
+    "ICMP": 2,
+    "ARP": 2,
+    "HTTP/TLS": 2,
+    "SUT": 12,
+    "综合": 2,
+    "HTTP/IP": 1
+  },
+  "question_type_distribution": {
+    "定义类": 12,
+    "机制类": 16,
+    "安全类": 1,
+    "字段类": 6,
+    "对比类": 10,
+    "综合类": 5,
+    "私有协议类": 2,
+    "规则类": 2,
+    "证据不足类": 12
+  },
+  "section_distribution": {
+    "rfc_questions": 44,
+    "sut_demo_questions": 12,
+    "refusal_questions": 10
+  },
+  "avg_correctness": 1.893939393939394,
+  "avg_completeness": 1.7272727272727273,
+  "avg_faithfulness": 1.893939393939394,
+  "avg_retrieval_relevance": 1.9545454545454546,
+  "by_protocol": {
+    "DNS": {
+      "count": 12,
+      "avg_correctness": 1.8333333333333333,
+      "avg_completeness": 1.5833333333333333,
+      "avg_faithfulness": 1.8333333333333333,
+      "avg_retrieval_relevance": 2.0
+    },
+    "HTTP": {
+      "count": 11,
+      "avg_correctness": 1.9090909090909092,
+      "avg_completeness": 1.6363636363636365,
+      "avg_faithfulness": 1.9090909090909092,
+      "avg_retrieval_relevance": 2.0
+    },
+    "TLS": {
+      "count": 7,
+      "avg_correctness": 1.8571428571428572,
+      "avg_completeness": 1.7142857142857142,
+      "avg_faithfulness": 1.8571428571428572,
+      "avg_retrieval_relevance": 2.0
+    },
+    "TLS/HTTP": {
+      "count": 3,
+      "avg_correctness": 2.0,
+      "avg_completeness": 1.6666666666666667,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "TCP": {
+      "count": 3,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "UDP": {
+      "count": 3,
+      "avg_correctness": 1.6666666666666667,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 1.6666666666666667,
+      "avg_retrieval_relevance": 1.3333333333333333
+    },
+    "TCP/UDP": {
+      "count": 1,
+      "avg_correctness": 2.0,
+      "avg_completeness": 1.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "IP": {
+      "count": 5,
+      "avg_correctness": 1.8,
+      "avg_completeness": 1.6,
+      "avg_faithfulness": 1.8,
+      "avg_retrieval_relevance": 2.0
+    },
+    "ICMP": {
+      "count": 2,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "ARP": {
+      "count": 2,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "HTTP/TLS": {
+      "count": 2,
+      "avg_correctness": 2.0,
+      "avg_completeness": 1.5,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "SUT": {
+      "count": 12,
+      "avg_correctness": 2.0,
+      "avg_completeness": 1.9166666666666667,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "综合": {
+      "count": 2,
+      "avg_correctness": 1.5,
+      "avg_completeness": 1.5,
+      "avg_faithfulness": 1.5,
+      "avg_retrieval_relevance": 1.5
+    },
+    "HTTP/IP": {
+      "count": 1,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    }
+  },
+  "by_question_type": {
+    "定义类": {
+      "count": 12,
+      "avg_correctness": 1.9166666666666667,
+      "avg_completeness": 1.8333333333333333,
+      "avg_faithfulness": 1.9166666666666667,
+      "avg_retrieval_relevance": 2.0
+    },
+    "机制类": {
+      "count": 16,
+      "avg_correctness": 2.0,
+      "avg_completeness": 1.9375,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "安全类": {
+      "count": 1,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "字段类": {
+      "count": 6,
+      "avg_correctness": 1.8333333333333333,
+      "avg_completeness": 1.8333333333333333,
+      "avg_faithfulness": 1.8333333333333333,
+      "avg_retrieval_relevance": 1.6666666666666667
+    },
+    "对比类": {
+      "count": 10,
+      "avg_correctness": 2.0,
+      "avg_completeness": 1.3,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "综合类": {
+      "count": 5,
+      "avg_correctness": 2.0,
+      "avg_completeness": 1.6,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "私有协议类": {
+      "count": 2,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "规则类": {
+      "count": 2,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "证据不足类": {
+      "count": 12,
+      "avg_correctness": 1.5833333333333333,
+      "avg_completeness": 1.5833333333333333,
+      "avg_faithfulness": 1.5833333333333333,
+      "avg_retrieval_relevance": 1.9166666666666667
+    }
+  }
+}

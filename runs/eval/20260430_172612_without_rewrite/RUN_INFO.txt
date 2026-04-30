@@ -1,0 +1,2 @@
+label=without_rewrite
+query_rewrite=disabled

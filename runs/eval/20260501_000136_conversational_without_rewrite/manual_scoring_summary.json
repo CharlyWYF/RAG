@@ -1,0 +1,147 @@
+{
+  "generated_at": "2026-05-01T00:39:59",
+  "total_questions": 15,
+  "protocol_distribution": {
+    "DNS": 3,
+    "TLS/HTTP": 2,
+    "HTTP/TLS": 1,
+    "HTTP": 2,
+    "TCP/UDP": 1,
+    "UDP": 1,
+    "TCP": 1,
+    "IP": 2,
+    "ARP": 1,
+    "综合": 1
+  },
+  "question_type_distribution": {
+    "口语化机制类": 6,
+    "口语化定义类": 2,
+    "口语化对比类": 3,
+    "口语化综合类": 1,
+    "口语化流程类": 1,
+    "证据不足类": 2
+  },
+  "section_distribution": {
+    "conversational_questions": 15
+  },
+  "avg_correctness": 1.7333333333333334,
+  "avg_completeness": 1.8666666666666667,
+  "avg_faithfulness": 1.8,
+  "avg_retrieval_relevance": 1.6666666666666667,
+  "by_protocol": {
+    "DNS": {
+      "count": 3,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "TLS/HTTP": {
+      "count": 2,
+      "avg_correctness": 1.5,
+      "avg_completeness": 1.5,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "HTTP/TLS": {
+      "count": 1,
+      "avg_correctness": 1.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 1.0,
+      "avg_retrieval_relevance": 0.0
+    },
+    "HTTP": {
+      "count": 2,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "TCP/UDP": {
+      "count": 1,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "UDP": {
+      "count": 1,
+      "avg_correctness": 1.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 1.0,
+      "avg_retrieval_relevance": 0.0
+    },
+    "TCP": {
+      "count": 1,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "IP": {
+      "count": 2,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "ARP": {
+      "count": 1,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "综合": {
+      "count": 1,
+      "avg_correctness": 1.0,
+      "avg_completeness": 1.0,
+      "avg_faithfulness": 1.0,
+      "avg_retrieval_relevance": 1.0
+    }
+  },
+  "by_question_type": {
+    "口语化机制类": {
+      "count": 6,
+      "avg_correctness": 1.8333333333333333,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 1.8333333333333333,
+      "avg_retrieval_relevance": 1.6666666666666667
+    },
+    "口语化定义类": {
+      "count": 2,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "口语化对比类": {
+      "count": 3,
+      "avg_correctness": 1.6666666666666667,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 1.6666666666666667,
+      "avg_retrieval_relevance": 1.3333333333333333
+    },
+    "口语化综合类": {
+      "count": 1,
+      "avg_correctness": 1.0,
+      "avg_completeness": 1.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "口语化流程类": {
+      "count": 1,
+      "avg_correctness": 2.0,
+      "avg_completeness": 2.0,
+      "avg_faithfulness": 2.0,
+      "avg_retrieval_relevance": 2.0
+    },
+    "证据不足类": {
+      "count": 2,
+      "avg_correctness": 1.5,
+      "avg_completeness": 1.5,
+      "avg_faithfulness": 1.5,
+      "avg_retrieval_relevance": 1.5
+    }
+  }
+}

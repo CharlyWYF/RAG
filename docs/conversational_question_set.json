@@ -1,0 +1,167 @@
+[
+  {
+    "id": "C1",
+    "question": "DNS 是怎么知道一个网站对应哪个地址的？",
+    "protocol_group": "DNS",
+    "question_type": "口语化机制类",
+    "target_document": "RFC 1034 / RFC 1035",
+    "difficulty": "中等",
+    "expected_keypoints": "域名解析、查询与返回地址信息",
+    "should_refuse": false,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C2",
+    "question": "DNSSEC 是不是就是给 DNS 加个签名防止被篡改？",
+    "protocol_group": "DNS",
+    "question_type": "口语化定义类",
+    "target_document": "RFC 4033 / RFC 4034 / RFC 4035",
+    "difficulty": "中等",
+    "expected_keypoints": "来源认证、完整性保护、否认存在认证",
+    "should_refuse": false,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C3",
+    "question": "如果一个域名压根不存在，DNS 为什么还能很快告诉我没有？",
+    "protocol_group": "DNS",
+    "question_type": "口语化机制类",
+    "target_document": "RFC 2308",
+    "difficulty": "中等",
+    "expected_keypoints": "negative caching、NXDOMAIN 缓存",
+    "should_refuse": false,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C4",
+    "question": "为啥有时候网站访问会先搞一堆加密握手？",
+    "protocol_group": "TLS/HTTP",
+    "question_type": "口语化机制类",
+    "target_document": "RFC 2818 / RFC 5246 / RFC 8446",
+    "difficulty": "中等",
+    "expected_keypoints": "TLS 握手、安全通道建立",
+    "should_refuse": false,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C5",
+    "question": "HTTPS 比 HTTP 多做了什么？",
+    "protocol_group": "HTTP/TLS",
+    "question_type": "口语化对比类",
+    "target_document": "RFC 2818 / RFC 9110 / RFC 8446",
+    "difficulty": "简单",
+    "expected_keypoints": "HTTP over TLS，安全层引入",
+    "should_refuse": false,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C6",
+    "question": "浏览器怎么知道该跟服务器说 HTTP/2 还是 HTTP/3？",
+    "protocol_group": "TLS/HTTP",
+    "question_type": "口语化综合类",
+    "target_document": "RFC 7301 / RFC 9113 / RFC 9114",
+    "difficulty": "较难",
+    "expected_keypoints": "ALPN / 传输层差异 / 协议协商",
+    "should_refuse": false,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C7",
+    "question": "HTTP/3 为啥不继续用 TCP 了？",
+    "protocol_group": "HTTP",
+    "question_type": "口语化机制类",
+    "target_document": "RFC 9114",
+    "difficulty": "中等",
+    "expected_keypoints": "QUIC 的引入与设计动机",
+    "should_refuse": false,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C8",
+    "question": "TCP 为什么看起来比 UDP 麻烦这么多？",
+    "protocol_group": "TCP/UDP",
+    "question_type": "口语化对比类",
+    "target_document": "RFC 9293 / RFC 768",
+    "difficulty": "中等",
+    "expected_keypoints": "可靠性、顺序、连接管理 vs 轻量无连接",
+    "should_refuse": false,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C9",
+    "question": "UDP 为什么很多时候反而更适合快速发数据？",
+    "protocol_group": "UDP",
+    "question_type": "口语化机制类",
+    "target_document": "RFC 768",
+    "difficulty": "中等",
+    "expected_keypoints": "低开销、无连接、轻量机制",
+    "should_refuse": false,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C10",
+    "question": "TCP 那个“三次握手”本质上是在干嘛？",
+    "protocol_group": "TCP",
+    "question_type": "口语化流程类",
+    "target_document": "RFC 793 / RFC 9293",
+    "difficulty": "中等",
+    "expected_keypoints": "建立连接、同步状态、确认双方收发能力",
+    "should_refuse": false,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C11",
+    "question": "IPv6 到底比 IPv4 改了些什么最关键的地方？",
+    "protocol_group": "IP",
+    "question_type": "口语化对比类",
+    "target_document": "RFC 791 / RFC 8200",
+    "difficulty": "中等",
+    "expected_keypoints": "地址长度、头部结构、扩展性",
+    "should_refuse": false,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C12",
+    "question": "为什么网络里有时候还要专门探测一下路径能发多大的包？",
+    "protocol_group": "IP",
+    "question_type": "口语化机制类",
+    "target_document": "RFC 8201",
+    "difficulty": "中等",
+    "expected_keypoints": "Path MTU Discovery 的意义",
+    "should_refuse": false,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C13",
+    "question": "ARP 是不是就是“问一下谁是这个 IP”？",
+    "protocol_group": "ARP",
+    "question_type": "口语化定义类",
+    "target_document": "RFC 826",
+    "difficulty": "简单",
+    "expected_keypoints": "协议地址到链路地址映射",
+    "should_refuse": false,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C14",
+    "question": "如果我问一个很模糊的问题，系统是不是更容易答偏？",
+    "protocol_group": "综合",
+    "question_type": "证据不足类",
+    "target_document": "多 RFC",
+    "difficulty": "中等",
+    "expected_keypoints": "需要保守回答或说明证据不足",
+    "should_refuse": true,
+    "section": "conversational_questions"
+  },
+  {
+    "id": "C15",
+    "question": "HTTP/3 在现实里一定就比 HTTP/2 体验好吗？",
+    "protocol_group": "HTTP",
+    "question_type": "证据不足类",
+    "target_document": "RFC 9113 / RFC 9114",
+    "difficulty": "中等",
+    "expected_keypoints": "不能绝对化，需保守回答",
+    "should_refuse": true,
+    "section": "conversational_questions"
+  }
+]

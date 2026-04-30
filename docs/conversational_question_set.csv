@@ -1,0 +1,16 @@
+id,question,protocol_group,question_type,target_document,difficulty,expected_keypoints,should_refuse,section
+C1,DNS 是怎么知道一个网站对应哪个地址的？,DNS,口语化机制类,RFC 1034 / RFC 1035,中等,域名解析、查询与返回地址信息,False,conversational_questions
+C2,DNSSEC 是不是就是给 DNS 加个签名防止被篡改？,DNS,口语化定义类,RFC 4033 / RFC 4034 / RFC 4035,中等,来源认证、完整性保护、否认存在认证,False,conversational_questions
+C3,如果一个域名压根不存在，DNS 为什么还能很快告诉我没有？,DNS,口语化机制类,RFC 2308,中等,negative caching、NXDOMAIN 缓存,False,conversational_questions
+C4,为啥有时候网站访问会先搞一堆加密握手？,TLS/HTTP,口语化机制类,RFC 2818 / RFC 5246 / RFC 8446,中等,TLS 握手、安全通道建立,False,conversational_questions
+C5,HTTPS 比 HTTP 多做了什么？,HTTP/TLS,口语化对比类,RFC 2818 / RFC 9110 / RFC 8446,简单,HTTP over TLS，安全层引入,False,conversational_questions
+C6,浏览器怎么知道该跟服务器说 HTTP/2 还是 HTTP/3？,TLS/HTTP,口语化综合类,RFC 7301 / RFC 9113 / RFC 9114,较难,ALPN / 传输层差异 / 协议协商,False,conversational_questions
+C7,HTTP/3 为啥不继续用 TCP 了？,HTTP,口语化机制类,RFC 9114,中等,QUIC 的引入与设计动机,False,conversational_questions
+C8,TCP 为什么看起来比 UDP 麻烦这么多？,TCP/UDP,口语化对比类,RFC 9293 / RFC 768,中等,可靠性、顺序、连接管理 vs 轻量无连接,False,conversational_questions
+C9,UDP 为什么很多时候反而更适合快速发数据？,UDP,口语化机制类,RFC 768,中等,低开销、无连接、轻量机制,False,conversational_questions
+C10,TCP 那个“三次握手”本质上是在干嘛？,TCP,口语化流程类,RFC 793 / RFC 9293,中等,建立连接、同步状态、确认双方收发能力,False,conversational_questions
+C11,IPv6 到底比 IPv4 改了些什么最关键的地方？,IP,口语化对比类,RFC 791 / RFC 8200,中等,地址长度、头部结构、扩展性,False,conversational_questions
+C12,为什么网络里有时候还要专门探测一下路径能发多大的包？,IP,口语化机制类,RFC 8201,中等,Path MTU Discovery 的意义,False,conversational_questions
+C13,ARP 是不是就是“问一下谁是这个 IP”？,ARP,口语化定义类,RFC 826,简单,协议地址到链路地址映射,False,conversational_questions
+C14,如果我问一个很模糊的问题，系统是不是更容易答偏？,综合,证据不足类,多 RFC,中等,需要保守回答或说明证据不足,True,conversational_questions
+C15,HTTP/3 在现实里一定就比 HTTP/2 体验好吗？,HTTP,证据不足类,RFC 9113 / RFC 9114,中等,不能绝对化，需保守回答,True,conversational_questions
