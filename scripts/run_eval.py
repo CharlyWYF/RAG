@@ -55,13 +55,14 @@ def extract_timing_value(timings: list[dict[str, Any]], stage: str) -> float:
 def run_single_question(
     item: dict[str, Any],
     verbose: bool = True,
+    enable_query_rewrite: bool = True,
 ) -> dict[str, Any]:
     if verbose:
         print(f"  ├─ 协议类别: {item['protocol_group']} | 题型: {item['question_type']} | 目标: {item['target_document']}")
         print(f"  ├─ 难度: {item['difficulty']} | 应保守回答: {item['should_refuse']}")
         print("  ├─ 开始执行 execute_qa_flow...")
 
-    result = execute_qa_flow(str(item["question"]))
+    result = execute_qa_flow(str(item["question"]), enable_query_rewrite=enable_query_rewrite)
     timings = result.get("timings", [])
     sources = [str(src) for src in result.get("sources", [])]
     source_metrics = compute_source_metrics(sources, str(item.get("target_document", "")))
@@ -257,6 +258,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run automated QA evaluation over the structured question set")
     parser.add_argument("--question-set", type=Path, default=DEFAULT_QUESTION_SET)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--disable-query-rewrite", action="store_true")
     args = parser.parse_args()
 
     questions = load_questions(args.question_set)
@@ -266,13 +268,14 @@ def main() -> None:
 
     print(f"[INFO] 题集文件: {args.question_set}")
     print(f"[INFO] 输出目录: {run_dir}")
+    print(f"[INFO] 查询改写开关: {'关闭' if args.disable_query_rewrite else '开启'}")
     print(f"[INFO] 共 {len(questions)} 道题，开始执行...\n")
 
     results: list[dict[str, Any]] = []
     total_questions = len(questions)
     for index, item in enumerate(questions, start=1):
         print(f"[RUN {index}/{total_questions}] Q{item['id']}: {item['question']}")
-        row = run_single_question(item, verbose=True)
+        row = run_single_question(item, verbose=True, enable_query_rewrite=not args.disable_query_rewrite)
         results.append(row)
         print()
 

@@ -40,6 +40,7 @@ def execute_qa_flow(
     question: str,
     progress_callback: Callable[[str], None] | None = None,
     stream_handler: AnswerStreamHandler | None = None,
+    enable_query_rewrite: bool = True,
 ) -> dict[str, Any]:
     def report(message: str) -> None:
         if progress_callback:
@@ -55,17 +56,19 @@ def execute_qa_flow(
     t1_end = perf_counter()
     timings.append({"stage": "load_settings", "seconds": t1_end - t1_start})
 
-    report("正在查询改写...")
-    t_rewrite_start = perf_counter()
-    rewrite_llm = build_llm(settings, model_override=settings.query_rewrite_model)
-    rewritten_raw = rewrite_llm.invoke(QUERY_REWRITE_PROMPT.format(question=q)).content.strip()
-    rewritten_queries = list(dict.fromkeys(
-        line.strip()
-        for line in rewritten_raw.splitlines()
-        if line.strip()
-    ))[:2]
-    t_rewrite_end = perf_counter()
-    timings.append({"stage": "rewrite_query", "seconds": t_rewrite_end - t_rewrite_start})
+    rewritten_queries: list[str] = []
+    if enable_query_rewrite:
+        report("正在查询改写...")
+        t_rewrite_start = perf_counter()
+        rewrite_llm = build_llm(settings, model_override=settings.query_rewrite_model)
+        rewritten_raw = rewrite_llm.invoke(QUERY_REWRITE_PROMPT.format(question=q)).content.strip()
+        rewritten_queries = list(dict.fromkeys(
+            line.strip()
+            for line in rewritten_raw.splitlines()
+            if line.strip()
+        ))[:2]
+        t_rewrite_end = perf_counter()
+        timings.append({"stage": "rewrite_query", "seconds": t_rewrite_end - t_rewrite_start})
 
     report("正在初始化检索器...")
     t2_start = perf_counter()

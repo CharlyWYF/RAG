@@ -9,12 +9,16 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from src.config import load_settings
 from src.retriever import get_retriever
 
-PROMPT_TEMPLATE = """你是一个网络协议学习助手。请严格依据给定上下文回答问题。
+PROMPT_TEMPLATE = """你是一个网络协议学习助手。请严格依据给定上下文回答问题，不要使用上下文之外的常识补全结论。
 
 规则：
 1) 如果上下文足以回答，先给简明结论，再给关键细节。
-2) 如果上下文不足，请明确说“资料不足以确定”，不要编造。
+2) 如果上下文不足，请明确说“资料不足以确定”，不要编造，不要扩展推断。
 3) 回答尽量结构化、易懂。
+4) 如果问题是对比类，优先按“维度 -> 差异”组织回答，尽量覆盖主要差异点。
+5) 如果问题是机制/流程类，优先按步骤、阶段或关键环节组织回答。
+6) 如果问题是字段/结构类，除定义外，尽量补充该字段或结构的作用。
+7) 不要把未在上下文中明确出现的信息表述为确定事实。
 
 问题：
 {question}
