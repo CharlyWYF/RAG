@@ -41,6 +41,7 @@ def execute_qa_flow(
     progress_callback: Callable[[str], None] | None = None,
     stream_handler: AnswerStreamHandler | None = None,
     enable_query_rewrite: bool = True,
+    prompt_template: str | None = None,
 ) -> dict[str, Any]:
     def report(message: str) -> None:
         if progress_callback:
@@ -124,7 +125,7 @@ def execute_qa_flow(
     if stream_handler:
         stream_handler.on_setup(q)
 
-    prompt = PROMPT_TEMPLATE.format(question=q, context=context)
+    prompt = (prompt_template or PROMPT_TEMPLATE).format(question=q, context=context)
     report("正在生成最终回答...")
     t5_start = perf_counter()
     first_token_seconds: float | None = None

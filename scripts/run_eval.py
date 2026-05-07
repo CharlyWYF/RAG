@@ -55,8 +55,13 @@ def extract_timing_value(timings: list[dict[str, Any]], stage: str) -> float:
 def run_single_question_once(
     item: dict[str, Any],
     enable_query_rewrite: bool = True,
+    prompt_template: str | None = None,
 ) -> dict[str, Any]:
-    result = execute_qa_flow(str(item["question"]), enable_query_rewrite=enable_query_rewrite)
+    result = execute_qa_flow(
+        str(item["question"]),
+        enable_query_rewrite=enable_query_rewrite,
+        prompt_template=prompt_template,
+    )
     timings = result.get("timings", [])
     sources = [str(src) for src in result.get("sources", [])]
     source_metrics = compute_source_metrics(sources, str(item.get("target_document", "")))
@@ -103,19 +108,28 @@ def run_single_question(
     item: dict[str, Any],
     verbose: bool = True,
     enable_query_rewrite: bool = True,
+    prompt_template: str | None = None,
 ) -> dict[str, Any]:
     if verbose:
         print(f"  ├─ 协议类别: {item['protocol_group']} | 题型: {item['question_type']} | 目标: {item['target_document']}")
         print(f"  ├─ 难度: {item['difficulty']} | 应保守回答: {item['should_refuse']}")
         print("  ├─ 开始执行 execute_qa_flow...")
 
-    first_attempt = run_single_question_once(item, enable_query_rewrite=enable_query_rewrite)
+    first_attempt = run_single_question_once(
+        item,
+        enable_query_rewrite=enable_query_rewrite,
+        prompt_template=prompt_template,
+    )
     row = first_attempt
 
     if first_attempt["first_token_seconds"] > 10:
         if verbose:
             print(f"  ├─ 首次首字响应时间过长（{first_attempt['first_token_seconds']:.3f}s），开始重试一次...")
-        second_attempt = run_single_question_once(item, enable_query_rewrite=enable_query_rewrite)
+        second_attempt = run_single_question_once(
+            item,
+            enable_query_rewrite=enable_query_rewrite,
+            prompt_template=prompt_template,
+        )
         row = min([first_attempt, second_attempt], key=lambda x: x["first_token_seconds"] or float("inf"))
 
     answer = row["answer"]
@@ -270,28 +284,34 @@ def build_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Run automated QA evaluation over the structured question set")
-    parser.add_argument("--question-set", type=Path, default=DEFAULT_QUESTION_SET)
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
-    parser.add_argument("--disable-query-rewrite", action="store_true")
-    args = parser.parse_args()
-
-    questions = load_questions(args.question_set)
+def run_evaluation(
+    question_set_path: Path = DEFAULT_QUESTION_SET,
+    output_dir: Path = DEFAULT_OUTPUT_DIR,
+    enable_query_rewrite: bool = True,
+    prompt_template: str | None = None,
+    run_name_suffix: str | None = None,
+) -> tuple[Path, list[dict[str, Any]], dict[str, Any]]:
+    questions = load_questions(question_set_path)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = args.output_dir / timestamp
+    run_name = f"{timestamp}_{run_name_suffix}" if run_name_suffix else timestamp
+    run_dir = output_dir / run_name
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"[INFO] 题集文件: {args.question_set}")
+    print(f"[INFO] 题集文件: {question_set_path}")
     print(f"[INFO] 输出目录: {run_dir}")
-    print(f"[INFO] 查询改写开关: {'关闭' if args.disable_query_rewrite else '开启'}")
+    print(f"[INFO] 查询改写开关: {'开启' if enable_query_rewrite else '关闭'}")
     print(f"[INFO] 共 {len(questions)} 道题，开始执行...\n")
 
     results: list[dict[str, Any]] = []
     total_questions = len(questions)
     for index, item in enumerate(questions, start=1):
         print(f"[RUN {index}/{total_questions}] Q{item['id']}: {item['question']}")
-        row = run_single_question(item, verbose=True, enable_query_rewrite=not args.disable_query_rewrite)
+        row = run_single_question(
+            item,
+            verbose=True,
+            enable_query_rewrite=enable_query_rewrite,
+            prompt_template=prompt_template,
+        )
         results.append(row)
         print()
 
@@ -309,6 +329,22 @@ def main() -> None:
     print(f"平均总耗时: {summary['avg_total_seconds']:.3f}s")
     print(f"平均首字时间: {summary['avg_first_token_seconds']:.3f}s")
     print(f"目标文档命中率: {summary['target_hit_rate']:.3f}")
+
+    return run_dir, results, summary
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run automated QA evaluation over the structured question set")
+    parser.add_argument("--question-set", type=Path, default=DEFAULT_QUESTION_SET)
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--disable-query-rewrite", action="store_true")
+    args = parser.parse_args()
+
+    run_evaluation(
+        question_set_path=args.question_set,
+        output_dir=args.output_dir,
+        enable_query_rewrite=not args.disable_query_rewrite,
+    )
 
 
 if __name__ == "__main__":

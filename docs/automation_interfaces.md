@@ -48,6 +48,8 @@ execute_qa_flow(
     question: str,
     progress_callback: Callable[[str], None] | None = None,
     stream_handler: AnswerStreamHandler | None = None,
+    enable_query_rewrite: bool = True,
+    prompt_template: str | None = None,
 ) -> dict[str, Any]
 ```
 
@@ -65,6 +67,8 @@ execute_qa_flow(
 - `question`：用户问题
 - `progress_callback`：可选，执行阶段进度回调
 - `stream_handler`：可选，用于接收流式输出事件
+- `enable_query_rewrite`：是否开启查询改写
+- `prompt_template`：可选，自定义问答提示词模板；不传时默认使用当前主流程模板
 
 #### 返回结构
 返回 `dict[str, Any]`，当前包含：
