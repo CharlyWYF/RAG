@@ -18,6 +18,7 @@ class Settings:
     top_k: int
     data_dir: str
     chroma_dir: str
+    lang: str
 
 
 def load_settings() -> Settings:
@@ -36,6 +37,10 @@ def load_settings() -> Settings:
     if top_k <= 0:
         raise ValueError("TOP_K must be greater than 0.")
 
+    lang = os.getenv("UI_LANG", "zh").strip().lower()
+    if lang not in ("zh", "en"):
+        raise ValueError("UI_LANG must be 'zh' or 'en'.")
+
     return Settings(
         openai_api_key=openai_api_key,
         openai_base_url=os.getenv("OPENAI_BASE_URL", "").strip(),
@@ -47,4 +52,5 @@ def load_settings() -> Settings:
         top_k=top_k,
         data_dir=os.getenv("DATA_DIR", "data/protocols/cleaned"),
         chroma_dir=os.getenv("CHROMA_DIR", "chroma_db"),
+        lang=lang,
     )

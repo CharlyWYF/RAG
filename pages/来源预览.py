@@ -4,33 +4,35 @@ from pathlib import Path
 
 import streamlit as st
 
-st.set_page_config(page_title="来源预览", layout="wide")
+from src.i18n import t
+
+st.set_page_config(page_title=t("preview.title"), layout="wide")
 
 query_params = st.query_params
 raw_path = str(query_params.get("path", "")).strip()
 
 if not raw_path:
-    st.title("来源预览")
-    st.info("未提供来源文件路径。请从主问答页点击“预览”进入此页面。")
+    st.title(t("preview.title"))
+    st.info(t("preview.no_path"))
 else:
     target = Path(raw_path).expanduser().resolve()
-    st.page_link("app.py", label="← 返回主页面")
+    st.page_link("app.py", label=t("preview.back"))
     st.title(target.name)
     st.caption(str(target))
 
     if not target.exists():
-        st.error(f"文件不存在：{target}")
+        st.error(t("preview.file_not_found", target=target))
     elif not target.is_file():
-        st.error(f"目标不是文件：{target}")
+        st.error(t("preview.not_file", target=target))
     else:
         try:
             content = target.read_text(encoding="utf-8", errors="ignore")
         except Exception as exc:
-            st.error(f"读取文件失败：{exc}")
+            st.error(t("preview.read_failed", exc=exc))
         else:
-            st.markdown("### 文件内容")
+            st.markdown(t("preview.content_title"))
             if target.suffix.lower() == ".md":
                 with st.container(border=True):
                     st.markdown(content)
             else:
-                st.text_area("文件内容", value=content, height=760)
+                st.text_area(t("preview.content_label"), value=content, height=760)

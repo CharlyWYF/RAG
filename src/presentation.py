@@ -5,19 +5,20 @@ from typing import Any
 from urllib.parse import quote
 
 from src.file_ops import resolve_source_path
+from src.i18n import t
 
 
 def stage_label(stage: str) -> str:
     labels = {
-        "load_settings": "加载配置",
-        "rewrite_query": "查询改写",
-        "init_retriever": "初始化检索器",
-        "retrieve": "向量检索",
-        "init_llm": "初始化大模型客户端",
-        "first_token": "首字响应时间",
-        "generate_first_token": "生成首字耗时",
-        "generate_answer": "生成回答",
-        "total": "总耗时",
+        "load_settings": t("timing.load_config"),
+        "rewrite_query": t("timing.rewrite_query"),
+        "init_retriever": t("timing.init_retriever"),
+        "retrieve": t("timing.retrieve"),
+        "init_llm": t("timing.init_llm"),
+        "first_token": t("timing.first_token"),
+        "generate_first_token": t("timing.gen_first_token"),
+        "generate_answer": t("timing.generate_answer"),
+        "total": t("timing.total"),
     }
     return labels.get(stage, stage)
 
@@ -29,17 +30,17 @@ def format_timing_rows(timings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if stage == "first_token":
             continue
         seconds = float(item.get("seconds", 0.0))
-        rows.append({"阶段": stage_label(stage), "耗时(秒)": round(seconds, 3)})
+        rows.append({t("timing.stage"): stage_label(stage), t("timing.seconds"): round(seconds, 3)})
     return rows
 
 
 def build_stage_label(stage: str) -> str:
     labels = {
-        "load_docs": "加载文档",
-        "load_chroma": "加载向量库",
-        "split_docs": "文档切块",
-        "write_chunks": "写入 Chunk / Embedding",
-        "total": "总耗时",
+        "load_docs": t("timing.load_docs"),
+        "load_chroma": t("timing.load_chroma"),
+        "split_docs": t("timing.split_docs"),
+        "write_chunks": t("timing.write_chunks"),
+        "total": t("timing.total"),
     }
     return labels.get(stage, stage)
 
@@ -49,7 +50,7 @@ def format_build_timing_rows(timings: list[dict[str, Any]]) -> list[dict[str, An
     for item in timings:
         stage = str(item.get("stage", "unknown"))
         seconds = float(item.get("seconds", 0.0))
-        rows.append({"阶段": build_stage_label(stage), "耗时(秒)": round(seconds, 3)})
+        rows.append({t("timing.stage"): build_stage_label(stage), t("timing.seconds"): round(seconds, 3)})
     return rows
 
 
