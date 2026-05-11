@@ -56,4 +56,4 @@ def format_build_timing_rows(timings: list[dict[str, Any]]) -> list[dict[str, An
 
 def build_preview_url(file_path: str, project_root: Path) -> str:
     resolved = resolve_source_path(file_path, project_root)
-    return f"/来源预览?path={quote(str(resolved))}"
+    return f"/SourcePreview?path={quote(str(resolved))}"
