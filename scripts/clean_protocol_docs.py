@@ -169,10 +169,22 @@ def _looks_like_numbered_toc_entry(line: str) -> bool:
     return not stripped.endswith(":")
 
 
+SEQUENCE_DIAGRAM_RE = re.compile(r"(?:-->|<--|<SEQ=|<CTL=|<ACK=|\.{3})")
+TCP_STATE_RE = re.compile(
+    r"^\s*\d+\.\s+(CLOSED|LISTEN|SYN-SENT|SYN-RECEIVED|ESTABLISHED|FIN-WAIT-1|FIN-WAIT-2|CLOSE-WAIT|CLOSING|LAST-ACK|TIME-WAIT)\b",
+    re.IGNORECASE,
+)
+
+
 def _is_section_header(line: str, protocol: str) -> bool:
     if _is_toc_line(line):
         return False
     if ICMP_ENUM_RE.match(line) or BIT_LABEL_RE.match(line):
+        return False
+    # RFC sequence diagram lines (e.g. "1. CLOSED LISTEN", "2. SYN-SENT --> <SEQ=100>...")
+    if SEQUENCE_DIAGRAM_RE.search(line):
+        return False
+    if TCP_STATE_RE.match(line):
         return False
 
     match = SECTION_HEADER_RE.match(line)
@@ -201,12 +213,16 @@ def _is_section_header(line: str, protocol: str) -> bool:
     if section_id.lower().startswith("appendix"):
         return True
 
-    if protocol != "dns" and re.match(r"^\d+\.?$", section_id):
-        words = normalized_title.split()
-        if len(words) > 6:
+    if re.match(r"^\d+\.?$", section_id):
+        # Sentence continuations typically start with a lowercase letter
+        if normalized_title and normalized_title[0].islower():
             return False
-        if normalized_title.endswith("."):
-            return False
+        if protocol != "dns":
+            words = normalized_title.split()
+            if len(words) > 6:
+                return False
+            if normalized_title.endswith("."):
+                return False
 
     return True
 
