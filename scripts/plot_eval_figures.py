@@ -11,9 +11,9 @@ from matplotlib.font_manager import FontProperties
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_SUMMARY = PROJECT_ROOT / "runs" / "eval" / "20260429_173324" / "summary.json"
-DEFAULT_RESULTS = PROJECT_ROOT / "runs" / "eval" / "20260429_173324" / "results.jsonl"
-DEFAULT_MANUAL_SUMMARY = PROJECT_ROOT / "runs" / "eval" / "20260429_173324" / "manual_scoring_summary.json"
+DEFAULT_SUMMARY = PROJECT_ROOT / "runs" / "eval" / "20260430_230707_with_rewrite" / "summary.json"
+DEFAULT_RESULTS = PROJECT_ROOT / "runs" / "eval" / "20260430_230707_with_rewrite" / "results.jsonl"
+DEFAULT_MANUAL_SUMMARY = PROJECT_ROOT / "runs" / "eval" / "20260430_230707_with_rewrite" / "manual_scoring_summary.json"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "runs" / "figures"
 
 
@@ -25,17 +25,17 @@ def load_manual_summary(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _load_zh_font() -> FontProperties:
+def _load_font() -> FontProperties:
     font_path = PROJECT_ROOT / "assets" / "fonts" / "SourceHanSansSC-Regular.otf"
     if font_path.exists():
         return FontProperties(fname=str(font_path))
     return FontProperties(family="DejaVu Sans")
 
 
+EN_FONT = _load_font()
 rcParams["axes.unicode_minus"] = False
 rcParams["figure.facecolor"] = "white"
 rcParams["axes.facecolor"] = "white"
-ZH_FONT = _load_zh_font()
 
 PRIMARY = "#1f3a5f"
 SECONDARY = "#4e79a7"
@@ -43,6 +43,19 @@ ACCENT = "#f28e2b"
 ACCENT_RED = "#e15759"
 GRID = "#d8dee9"
 TEXT = "#1f2937"
+
+CATEGORY_EN = {
+    "机制类": "Mechanism",
+    "定义类": "Definition",
+    "对比类": "Comparison",
+    "综合类": "Comprehensive",
+    "证据不足类": "Insufficient Evidence",
+    "字段类": "Field",
+    "安全类": "Security",
+    "私有协议类": "Private Protocol",
+    "规则类": "Rule",
+    "综合": "Cross-Protocol",
+}
 
 
 def apply_axis_style(ax) -> None:
@@ -57,9 +70,9 @@ def apply_axis_style(ax) -> None:
 
 def set_axis_fonts(ax) -> None:
     for label in ax.get_xticklabels():
-        label.set_fontproperties(ZH_FONT)
+        label.set_fontproperties(EN_FONT)
     for label in ax.get_yticklabels():
-        label.set_fontproperties(ZH_FONT)
+        label.set_fontproperties(EN_FONT)
 
 
 def load_summary(path: Path) -> dict:
@@ -78,9 +91,9 @@ def format_seconds_label(value: float) -> str:
 
 def plot_section_distribution(summary: dict, output_dir: Path) -> None:
     mapping = {
-        "rfc_questions": "RFC 标准题",
-        "refusal_questions": "保守回答题",
-        "sut_demo_questions": "SUT 演示题",
+        "rfc_questions": "RFC Standard",
+        "refusal_questions": "Refusal",
+        "sut_demo_questions": "SUT Demo",
     }
     data = summary.get("section_distribution", {})
     labels = [mapping.get(key, key) for key in data.keys()]
@@ -95,12 +108,12 @@ def plot_section_distribution(summary: dict, output_dir: Path) -> None:
         wedgeprops={"width": 0.42, "edgecolor": "white"},
     )
     total = sum(values)
-    centre_text = f"总题数\n{total}"
-    ax.text(0, 0, centre_text, ha="center", va="center", fontproperties=ZH_FONT, fontsize=18, color=TEXT)
+    centre_text = f"Total\n{total}"
+    ax.text(0, 0, centre_text, ha="center", va="center", fontproperties=EN_FONT, fontsize=18, color=TEXT)
     legend = ax.legend(wedges, labels, loc="center left", bbox_to_anchor=(1.0, 0.5), frameon=False)
     for text in legend.get_texts():
-        text.set_fontproperties(ZH_FONT)
-    ax.set_title("测试问题集总体构成", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
+        text.set_fontproperties(EN_FONT)
+    ax.set_title("Test Question Set Composition", fontproperties=EN_FONT, fontsize=16, color=TEXT)
     fig.tight_layout()
     fig.savefig(output_dir / "fig01_section_distribution.png", dpi=220)
     plt.close(fig)
@@ -109,13 +122,13 @@ def plot_section_distribution(summary: dict, output_dir: Path) -> None:
 def plot_protocol_distribution(summary: dict, output_dir: Path) -> None:
     data = summary.get("protocol_distribution", {})
     items = sorted(data.items(), key=lambda x: x[1], reverse=True)
-    labels = [k for k, _ in items]
+    labels = [CATEGORY_EN.get(k, k) for k, _ in items]
     values = [v for _, v in items]
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.barh(labels, values, color=SECONDARY)
-    ax.set_title("测试问题集在不同协议类别上的分布", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
-    ax.set_xlabel("题目数量", fontproperties=ZH_FONT, color=TEXT)
+    ax.set_title("Distribution by Protocol Category", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_xlabel("Number of Questions", fontproperties=EN_FONT, color=TEXT)
     apply_axis_style(ax)
     set_axis_fonts(ax)
     ax.invert_yaxis()
@@ -127,13 +140,13 @@ def plot_protocol_distribution(summary: dict, output_dir: Path) -> None:
 def plot_question_type_distribution(summary: dict, output_dir: Path) -> None:
     data = summary.get("question_type_distribution", {})
     items = sorted(data.items(), key=lambda x: x[1], reverse=True)
-    labels = [k for k, _ in items]
+    labels = [CATEGORY_EN.get(k, k) for k, _ in items]
     values = [v for _, v in items]
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.barh(labels, values, color=PRIMARY)
-    ax.set_title("测试问题集在不同题型上的分布", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
-    ax.set_xlabel("题目数量", fontproperties=ZH_FONT, color=TEXT)
+    ax.set_title("Distribution by Question Type", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_xlabel("Number of Questions", fontproperties=EN_FONT, color=TEXT)
     apply_axis_style(ax)
     set_axis_fonts(ax)
     ax.invert_yaxis()
@@ -147,18 +160,18 @@ def plot_timing_composition(summary: dict, output_dir: Path) -> None:
     total = float(summary.get("avg_total_seconds", 0.0))
 
     stages = [
-        ("加载配置", float(summary.get("avg_load_settings_seconds", 0.0)), "#6c8ebf"),
-        ("查询改写", float(summary.get("avg_rewrite_seconds", 0.0)), SECONDARY),
-        ("初始化检索器", float(summary.get("avg_init_retriever_seconds", 0.0)), "#7fb069"),
-        ("向量检索", float(summary.get("avg_retrieve_seconds", 0.0)), PRIMARY),
-        ("初始化大模型", float(summary.get("avg_init_llm_seconds", 0.0)), "#9c89b8"),
-        ("生成最终回答", float(summary.get("avg_generate_answer_seconds", 0.0)), ACCENT),
+        ("Load Config", float(summary.get("avg_load_settings_seconds", 0.0)), "#6c8ebf"),
+        ("Query Rewrite", float(summary.get("avg_rewrite_seconds", 0.0)), SECONDARY),
+        ("Init Retriever", float(summary.get("avg_init_retriever_seconds", 0.0)), "#7fb069"),
+        ("Retrieval", float(summary.get("avg_retrieve_seconds", 0.0)), PRIMARY),
+        ("Init LLM", float(summary.get("avg_init_llm_seconds", 0.0)), "#9c89b8"),
+        ("Answer Generation", float(summary.get("avg_generate_answer_seconds", 0.0)), ACCENT),
     ]
 
     known = sum(value for _, value, _ in stages)
     other = max(total - known, 0.0)
     if other > 0:
-        stages.append(("其他开销", other, "#9aa5b1"))
+        stages.append(("Other", other, "#9aa5b1"))
 
     fig, ax = plt.subplots(figsize=(7.8, 10.8))
     x = 0.32
@@ -179,11 +192,11 @@ def plot_timing_composition(summary: dict, output_dir: Path) -> None:
         ax.text(
             x + 0.19,
             center_y,
-            f"{label}\n阶段耗时 {format_seconds_label(value)}",
+            f"{label}\n{format_seconds_label(value)}",
             va="center",
             ha="left",
             color=TEXT,
-            fontproperties=ZH_FONT,
+            fontproperties=EN_FONT,
             fontsize=10.2,
         )
 
@@ -191,11 +204,11 @@ def plot_timing_composition(summary: dict, output_dir: Path) -> None:
     first_token_text = ax.text(
         x + 0.29,
         first_token,
-        f"首字响应时间\n累计 {format_seconds_label(first_token)}",
+        f"First Token Latency\n{format_seconds_label(first_token)}",
         va="center",
         ha="left",
         color=ACCENT_RED,
-        fontproperties=ZH_FONT,
+        fontproperties=EN_FONT,
         fontsize=12.8,
         bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "edgecolor": ACCENT_RED, "linewidth": 1.6},
     )
@@ -208,19 +221,19 @@ def plot_timing_composition(summary: dict, output_dir: Path) -> None:
     )
 
     ax.annotate(
-        f"总耗时\n累计 {format_seconds_label(total)}",
+        f"Total Time\n{format_seconds_label(total)}",
         xy=(x, total),
         xytext=(x + 0.24, total + max(total * 0.04, 0.18)),
         color=TEXT,
-        fontproperties=ZH_FONT,
+        fontproperties=EN_FONT,
         fontsize=11.5,
         ha="left",
         va="bottom",
         arrowprops={"arrowstyle": "->", "color": TEXT, "lw": 1.2},
     )
 
-    ax.set_title("问答流程平均耗时阶段时间轴", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
-    ax.set_ylabel("秒", fontproperties=ZH_FONT, color=TEXT)
+    ax.set_title("Average Stage Timeline of Q&A Flow", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_ylabel("Seconds", fontproperties=EN_FONT, color=TEXT)
     ax.set_xlim(0.04, 1.02)
     ax.set_ylim(0, total * 1.18 if total > 0 else 1)
     ax.set_xticks([])
@@ -239,7 +252,7 @@ def plot_timing_composition(summary: dict, output_dir: Path) -> None:
 def plot_protocol_hit_rate(summary: dict, output_dir: Path) -> None:
     data = summary.get("by_protocol", {})
     items = sorted(data.items(), key=lambda x: x[1].get("target_hit_rate", 0.0), reverse=True)
-    labels = [k for k, _ in items]
+    labels = [CATEGORY_EN.get(k, k) for k, _ in items]
     values = [float(v.get("target_hit_rate", 0.0)) for _, v in items]
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -249,8 +262,8 @@ def plot_protocol_hit_rate(summary: dict, output_dir: Path) -> None:
     ax.set_yticks(y_positions)
     ax.set_yticklabels(labels)
     ax.set_xlim(0, 1.05)
-    ax.set_title("不同协议类别的目标文档命中率", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
-    ax.set_xlabel("命中率", fontproperties=ZH_FONT, color=TEXT)
+    ax.set_title("Target Document Hit Rate by Protocol", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_xlabel("Hit Rate", fontproperties=EN_FONT, color=TEXT)
     apply_axis_style(ax)
     set_axis_fonts(ax)
     ax.invert_yaxis()
@@ -262,13 +275,13 @@ def plot_protocol_hit_rate(summary: dict, output_dir: Path) -> None:
 def plot_protocol_avg_total_time(summary: dict, output_dir: Path) -> None:
     data = summary.get("by_protocol", {})
     items = sorted(data.items(), key=lambda x: x[1].get("avg_total_seconds", 0.0), reverse=True)
-    labels = [k for k, _ in items]
+    labels = [CATEGORY_EN.get(k, k) for k, _ in items]
     values = [float(v.get("avg_total_seconds", 0.0)) for _, v in items]
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.barh(labels, values, color=PRIMARY)
-    ax.set_title("不同协议类别的平均总耗时", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
-    ax.set_xlabel("秒", fontproperties=ZH_FONT, color=TEXT)
+    ax.set_title("Average Total Time by Protocol", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_xlabel("Seconds", fontproperties=EN_FONT, color=TEXT)
     apply_axis_style(ax)
     set_axis_fonts(ax)
     ax.invert_yaxis()
@@ -284,17 +297,17 @@ def plot_refusal_summary(results: list[dict], output_dir: Path) -> None:
     tn = sum(1 for row in results if not row.get("should_refuse") and not row.get("refused"))
 
     matrix = [[tp, fn], [fp, tn]]
-    row_labels = ["应保守回答", "不应保守回答"]
-    col_labels = ["系统保守回答", "系统正常回答"]
+    row_labels = ["Should Refuse", "Should Not Refuse"]
+    col_labels = ["System Refused", "System Answered"]
 
     fig, ax = plt.subplots(figsize=(7.2, 6.4))
     im = ax.imshow(matrix, cmap="Blues")
 
     ax.set_xticks([0, 1])
     ax.set_yticks([0, 1])
-    ax.set_xticklabels(col_labels, fontproperties=ZH_FONT)
-    ax.set_yticklabels(row_labels, fontproperties=ZH_FONT)
-    ax.set_title("系统保守回答行为混淆矩阵", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
+    ax.set_xticklabels(col_labels, fontproperties=EN_FONT)
+    ax.set_yticklabels(row_labels, fontproperties=EN_FONT)
+    ax.set_title("Refusal Confusion Matrix", fontproperties=EN_FONT, fontsize=16, color=TEXT)
 
     max_value = max(tp, fn, fp, tn, 1)
     for i in range(2):
@@ -307,12 +320,12 @@ def plot_refusal_summary(results: list[dict], output_dir: Path) -> None:
                 ha="center",
                 va="center",
                 color="white" if value > max_value / 2 else TEXT,
-                fontproperties=ZH_FONT,
+                fontproperties=EN_FONT,
                 fontsize=16,
             )
 
-    ax.set_xlabel("系统输出", fontproperties=ZH_FONT, color=TEXT)
-    ax.set_ylabel("题目真实要求", fontproperties=ZH_FONT, color=TEXT, labelpad=8)
+    ax.set_xlabel("System Output", fontproperties=EN_FONT, color=TEXT)
+    ax.set_ylabel("Ground Truth", fontproperties=EN_FONT, color=TEXT, labelpad=8)
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     fig.subplots_adjust(left=0.20, bottom=0.12, right=0.88, top=0.90)
     fig.savefig(output_dir / "fig08_refusal_confusion_matrix.png", dpi=220)
@@ -320,7 +333,7 @@ def plot_refusal_summary(results: list[dict], output_dir: Path) -> None:
 
 
 def plot_manual_score_overview(manual_summary: dict, output_dir: Path) -> None:
-    labels = ["正确性", "完整性", "忠实性", "检索相关性"]
+    labels = ["Correctness", "Completeness", "Faithfulness", "Retrieval Relevance"]
     values = [
         float(manual_summary.get("avg_correctness", 0.0)),
         float(manual_summary.get("avg_completeness", 0.0)),
@@ -331,13 +344,13 @@ def plot_manual_score_overview(manual_summary: dict, output_dir: Path) -> None:
 
     fig, ax = plt.subplots(figsize=(8.5, 5.6))
     bars = ax.bar(labels, values, color=colors)
-    ax.set_title("人工评分各维度平均值", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
-    ax.set_ylabel("平均分", fontproperties=ZH_FONT, color=TEXT)
+    ax.set_title("Average Manual Scores by Dimension", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_ylabel("Average Score", fontproperties=EN_FONT, color=TEXT)
     ax.set_ylim(0, 2.1)
     apply_axis_style(ax)
     set_axis_fonts(ax)
     for bar, value in zip(bars, values):
-        ax.text(bar.get_x() + bar.get_width() / 2, value + 0.03, f"{value:.2f}", ha="center", va="bottom", color=TEXT, fontproperties=ZH_FONT)
+        ax.text(bar.get_x() + bar.get_width() / 2, value + 0.03, f"{value:.2f}", ha="center", va="bottom", color=TEXT, fontproperties=EN_FONT)
     fig.tight_layout()
     fig.savefig(output_dir / "fig09_manual_score_overview.png", dpi=220)
     plt.close(fig)
@@ -346,26 +359,26 @@ def plot_manual_score_overview(manual_summary: dict, output_dir: Path) -> None:
 def plot_manual_score_by_protocol(manual_summary: dict, output_dir: Path) -> None:
     data = manual_summary.get("by_protocol", {})
     items = sorted(data.items(), key=lambda x: x[1].get("avg_correctness", 0.0), reverse=True)
-    labels = [k for k, _ in items]
+    labels = [CATEGORY_EN.get(k, k) for k, _ in items]
     correctness = [float(v.get("avg_correctness", 0.0)) for _, v in items]
     completeness = [float(v.get("avg_completeness", 0.0)) for _, v in items]
 
     fig, ax = plt.subplots(figsize=(11, 6.5))
     y = list(range(len(labels)))
     h = 0.36
-    ax.barh([i - h / 2 for i in y], correctness, height=h, color=PRIMARY, label="正确性")
-    ax.barh([i + h / 2 for i in y], completeness, height=h, color=ACCENT, label="完整性")
+    ax.barh([i - h / 2 for i in y], correctness, height=h, color=PRIMARY, label="Correctness")
+    ax.barh([i + h / 2 for i in y], completeness, height=h, color=ACCENT, label="Completeness")
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.set_xlim(0, 2.1)
-    ax.set_title("不同协议类别的人工评分对比", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
-    ax.set_xlabel("平均分", fontproperties=ZH_FONT, color=TEXT)
+    ax.set_title("Manual Scores by Protocol", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_xlabel("Average Score", fontproperties=EN_FONT, color=TEXT)
     apply_axis_style(ax)
     set_axis_fonts(ax)
     ax.invert_yaxis()
     legend = ax.legend(frameon=False, loc="lower right")
     for text in legend.get_texts():
-        text.set_fontproperties(ZH_FONT)
+        text.set_fontproperties(EN_FONT)
     fig.tight_layout()
     fig.savefig(output_dir / "fig10_manual_score_by_protocol.png", dpi=220)
     plt.close(fig)
@@ -378,17 +391,17 @@ def plot_refusal_summary(results: list[dict], output_dir: Path) -> None:
     tn = sum(1 for row in results if not row.get("should_refuse") and not row.get("refused"))
 
     matrix = [[tp, fn], [fp, tn]]
-    row_labels = ["应保守回答", "不应保守回答"]
-    col_labels = ["系统保守回答", "系统正常回答"]
+    row_labels = ["Should Refuse", "Should Not Refuse"]
+    col_labels = ["System Refused", "System Answered"]
 
     fig, ax = plt.subplots(figsize=(7.2, 6.4))
     im = ax.imshow(matrix, cmap="Blues")
 
     ax.set_xticks([0, 1])
     ax.set_yticks([0, 1])
-    ax.set_xticklabels(col_labels, fontproperties=ZH_FONT)
-    ax.set_yticklabels(row_labels, fontproperties=ZH_FONT)
-    ax.set_title("系统保守回答行为混淆矩阵", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
+    ax.set_xticklabels(col_labels, fontproperties=EN_FONT)
+    ax.set_yticklabels(row_labels, fontproperties=EN_FONT)
+    ax.set_title("Refusal Confusion Matrix", fontproperties=EN_FONT, fontsize=16, color=TEXT)
 
     max_value = max(tp, fn, fp, tn, 1)
     for i in range(2):
@@ -401,12 +414,12 @@ def plot_refusal_summary(results: list[dict], output_dir: Path) -> None:
                 ha="center",
                 va="center",
                 color="white" if value > max_value / 2 else TEXT,
-                fontproperties=ZH_FONT,
+                fontproperties=EN_FONT,
                 fontsize=16,
             )
 
-    ax.set_xlabel("系统输出", fontproperties=ZH_FONT, color=TEXT)
-    ax.set_ylabel("题目真实要求", fontproperties=ZH_FONT, color=TEXT, labelpad=8)
+    ax.set_xlabel("System Output", fontproperties=EN_FONT, color=TEXT)
+    ax.set_ylabel("Ground Truth", fontproperties=EN_FONT, color=TEXT, labelpad=8)
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     fig.subplots_adjust(left=0.20, bottom=0.12, right=0.88, top=0.90)
     fig.savefig(output_dir / "fig08_refusal_confusion_matrix.png", dpi=220)
@@ -416,26 +429,26 @@ def plot_refusal_summary(results: list[dict], output_dir: Path) -> None:
 def plot_manual_score_by_question_type(manual_summary: dict, output_dir: Path) -> None:
     data = manual_summary.get("by_question_type", {})
     items = sorted(data.items(), key=lambda x: x[1].get("avg_completeness", 0.0), reverse=True)
-    labels = [k for k, _ in items]
+    labels = [CATEGORY_EN.get(k, k) for k, _ in items]
     completeness = [float(v.get("avg_completeness", 0.0)) for _, v in items]
     faithfulness = [float(v.get("avg_faithfulness", 0.0)) for _, v in items]
 
     fig, ax = plt.subplots(figsize=(11, 6.5))
     y = list(range(len(labels)))
     h = 0.36
-    ax.barh([i - h / 2 for i in y], completeness, height=h, color=SECONDARY, label="完整性")
-    ax.barh([i + h / 2 for i in y], faithfulness, height=h, color=ACCENT_RED, label="忠实性")
+    ax.barh([i - h / 2 for i in y], completeness, height=h, color=SECONDARY, label="Completeness")
+    ax.barh([i + h / 2 for i in y], faithfulness, height=h, color=ACCENT_RED, label="Faithfulness")
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.set_xlim(0, 2.1)
-    ax.set_title("不同题型的人工评分对比", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
-    ax.set_xlabel("平均分", fontproperties=ZH_FONT, color=TEXT)
+    ax.set_title("Manual Scores by Question Type", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_xlabel("Average Score", fontproperties=EN_FONT, color=TEXT)
     apply_axis_style(ax)
     set_axis_fonts(ax)
     ax.invert_yaxis()
     legend = ax.legend(frameon=False, loc="lower right")
     for text in legend.get_texts():
-        text.set_fontproperties(ZH_FONT)
+        text.set_fontproperties(EN_FONT)
     fig.tight_layout()
     fig.savefig(output_dir / "fig11_manual_score_by_question_type.png", dpi=220)
     plt.close(fig)
@@ -465,7 +478,7 @@ def main() -> None:
     plot_manual_score_by_protocol(manual_summary, args.output_dir)
     plot_manual_score_by_question_type(manual_summary, args.output_dir)
 
-    print(f"[OK] 论文版图表已生成到: {args.output_dir}")
+    print(f"[OK] Figures saved to: {args.output_dir}")
 
 
 if __name__ == "__main__":

@@ -15,17 +15,17 @@ EVAL_ROOT = PROJECT_ROOT / "runs" / "eval"
 OUTPUT_DIR = PROJECT_ROOT / "runs" / "figures" / "query_optimization_experiment"
 
 SCENES = {
-    "主测试集": {
+    "Main Test Set": {
         "without": EVAL_ROOT / "20260430_172612_without_rewrite",
         "with": EVAL_ROOT / "20260430_230707_with_rewrite",
     },
-    "口语化子集": {
+    "Conversational Subset": {
         "without": EVAL_ROOT / "20260501_000136_conversational_without_rewrite",
         "with": EVAL_ROOT / "20260501_002532_conversational_with_rewrite",
     },
 }
 
-LABELS = {"without": "无优化", "with": "查询优化"}
+LABELS = {"without": "Without Optimization", "with": "With Optimization"}
 PRIMARY = "#1f3a5f"
 SECONDARY = "#5f85a3"
 ACCENT = "#dd8452"
@@ -36,15 +36,34 @@ GRID = "#d8dee9"
 TEXT = "#1f2937"
 BG = "#ffffff"
 
+CATEGORY_EN = {
+    "机制类": "Mechanism",
+    "定义类": "Definition",
+    "对比类": "Comparison",
+    "综合类": "Comprehensive",
+    "证据不足类": "Insufficient Evidence",
+    "字段类": "Field",
+    "安全类": "Security",
+    "私有协议类": "Private Protocol",
+    "规则类": "Rule",
+    "综合": "Cross-Protocol",
+    "流程类": "Process",
+    "口语化机制类": "Conv. Mechanism",
+    "口语化定义类": "Conv. Definition",
+    "口语化对比类": "Conv. Comparison",
+    "口语化综合类": "Conv. Comprehensive",
+    "口语化流程类": "Conv. Process",
+}
 
-def _load_zh_font() -> FontProperties:
+
+def _load_font() -> FontProperties:
     font_path = PROJECT_ROOT / "assets" / "fonts" / "SourceHanSansSC-Regular.otf"
     if font_path.exists():
         return FontProperties(fname=str(font_path))
     return FontProperties(family="DejaVu Sans")
 
 
-ZH_FONT = _load_zh_font()
+EN_FONT = _load_font()
 rcParams["axes.unicode_minus"] = False
 rcParams["figure.facecolor"] = BG
 rcParams["axes.facecolor"] = BG
@@ -66,9 +85,9 @@ def apply_axis_style(ax, grid_axis: str = "y") -> None:
 
 def set_axis_fonts(ax) -> None:
     for label in ax.get_xticklabels():
-        label.set_fontproperties(ZH_FONT)
+        label.set_fontproperties(EN_FONT)
     for label in ax.get_yticklabels():
-        label.set_fontproperties(ZH_FONT)
+        label.set_fontproperties(EN_FONT)
 
 
 def load_json(path: Path) -> dict:
@@ -124,9 +143,9 @@ def format_pct_delta(before: float, after: float) -> str:
 
 def plot_overall_tradeoff(data: dict[str, dict[str, dict]]) -> None:
     metrics = [
-        ("target_hit_rate", "目标文档命中率", "rate"),
-        ("avg_unique_source_count", "平均唯一来源数", "count"),
-        ("avg_first_token_seconds", "平均首字响应时间 (s)", "time"),
+        ("target_hit_rate", "Target Hit Rate", "rate"),
+        ("avg_unique_source_count", "Avg Unique Source Count", "count"),
+        ("avg_first_token_seconds", "Avg First Token Latency (s)", "time"),
     ]
     scenes = list(data.keys())
     fig, axes = plt.subplots(1, 3, figsize=(15.2, 5.8))
@@ -136,9 +155,9 @@ def plot_overall_tradeoff(data: dict[str, dict[str, dict]]) -> None:
         width = 0.28
         before_vals = [float(data[s]["without"]["summary"][field]) for s in scenes]
         after_vals = [float(data[s]["with"]["summary"][field]) for s in scenes]
-        ax.bar(x - width / 2, before_vals, width=width, color=SECONDARY, label="无优化")
-        ax.bar(x + width / 2, after_vals, width=width, color=PRIMARY, label="查询优化")
-        ax.set_title(title, fontproperties=ZH_FONT, fontsize=14, color=TEXT)
+        ax.bar(x - width / 2, before_vals, width=width, color=SECONDARY, label="Without Optimization")
+        ax.bar(x + width / 2, after_vals, width=width, color=PRIMARY, label="With Optimization")
+        ax.set_title(title, fontproperties=EN_FONT, fontsize=14, color=TEXT)
         ax.set_xticks(x)
         ax.set_xticklabels(scenes)
         if metric_type == "rate":
@@ -163,14 +182,14 @@ def plot_overall_tradeoff(data: dict[str, dict[str, dict]]) -> None:
                 before_text = f"{before:.2f}"
                 after_text = f"{after:.2f}"
             delta_color = ACCENT_GREEN if after >= before else ACCENT_RED
-            ax.text(idx, text_y, delta_text, ha="center", va="bottom", color=delta_color, fontproperties=ZH_FONT, fontsize=11)
-            ax.text(idx - width / 2, before + (0.015 if metric_type == "rate" else 0.05), before_text, ha="center", va="bottom", color=TEXT, fontproperties=ZH_FONT, fontsize=9)
-            ax.text(idx + width / 2, after + (0.015 if metric_type == "rate" else 0.05), after_text, ha="center", va="bottom", color=TEXT, fontproperties=ZH_FONT, fontsize=9)
+            ax.text(idx, text_y, delta_text, ha="center", va="bottom", color=delta_color, fontproperties=EN_FONT, fontsize=11)
+            ax.text(idx - width / 2, before + (0.015 if metric_type == "rate" else 0.05), before_text, ha="center", va="bottom", color=TEXT, fontproperties=EN_FONT, fontsize=9)
+            ax.text(idx + width / 2, after + (0.015 if metric_type == "rate" else 0.05), after_text, ha="center", va="bottom", color=TEXT, fontproperties=EN_FONT, fontsize=9)
 
     legend = axes[0].legend(frameon=False, loc="upper left", bbox_to_anchor=(0.0, 1.18))
     for text in legend.get_texts():
-        text.set_fontproperties(ZH_FONT)
-    fig.suptitle("查询优化对检索命中、来源覆盖与响应效率的总体影响", fontproperties=ZH_FONT, fontsize=17, color=TEXT, y=0.87)
+        text.set_fontproperties(EN_FONT)
+    fig.suptitle("Impact of Query Optimization on Hit Rate, Source Coverage, and Latency", fontproperties=EN_FONT, fontsize=17, color=TEXT, y=0.87)
     fig.tight_layout(rect=[0, 0, 1, 0.84])
     fig.savefig(OUTPUT_DIR / "fig01_overall_tradeoff.png", dpi=240)
     plt.close(fig)
@@ -178,10 +197,10 @@ def plot_overall_tradeoff(data: dict[str, dict[str, dict]]) -> None:
 
 def plot_manual_quality(data: dict[str, dict[str, dict]]) -> None:
     metrics = [
-        ("avg_correctness", "正确性"),
-        ("avg_completeness", "完整性"),
-        ("avg_faithfulness", "忠实性"),
-        ("avg_retrieval_relevance", "检索相关性"),
+        ("avg_correctness", "Correctness"),
+        ("avg_completeness", "Completeness"),
+        ("avg_faithfulness", "Faithfulness"),
+        ("avg_retrieval_relevance", "Retrieval Relevance"),
     ]
     scenes = list(data.keys())
     fig, axes = plt.subplots(1, 2, figsize=(13.5, 5.6), sharey=True)
@@ -191,9 +210,9 @@ def plot_manual_quality(data: dict[str, dict[str, dict]]) -> None:
         width = 0.34
         before_vals = [float(data[scene]["without"]["manual"][field]) for field, _ in metrics]
         after_vals = [float(data[scene]["with"]["manual"][field]) for field, _ in metrics]
-        ax.bar(x - width / 2, before_vals, width=width, color=SECONDARY, label="无优化")
-        ax.bar(x + width / 2, after_vals, width=width, color=PRIMARY, label="查询优化")
-        ax.set_title(scene, fontproperties=ZH_FONT, fontsize=14, color=TEXT)
+        ax.bar(x - width / 2, before_vals, width=width, color=SECONDARY, label="Without Optimization")
+        ax.bar(x + width / 2, after_vals, width=width, color=PRIMARY, label="With Optimization")
+        ax.set_title(scene, fontproperties=EN_FONT, fontsize=14, color=TEXT)
         ax.set_xticks(x)
         ax.set_xticklabels([label for _, label in metrics], rotation=10)
         ax.set_ylim(0, 2.12)
@@ -203,12 +222,12 @@ def plot_manual_quality(data: dict[str, dict[str, dict]]) -> None:
             delta = after - before
             delta_text = f"{delta:+.2f}"
             color = ACCENT_GREEN if delta >= 0 else ACCENT_RED
-            ax.text(idx, max(before, after) + 0.08, delta_text, ha="center", va="bottom", color=color, fontproperties=ZH_FONT, fontsize=10)
+            ax.text(idx, max(before, after) + 0.08, delta_text, ha="center", va="bottom", color=color, fontproperties=EN_FONT, fontsize=10)
 
     legend = axes[0].legend(frameon=False, loc="upper left", bbox_to_anchor=(0.0, 1.18))
     for text in legend.get_texts():
-        text.set_fontproperties(ZH_FONT)
-    fig.suptitle("查询优化对人工评分质量维度的影响", fontproperties=ZH_FONT, fontsize=17, color=TEXT, y=0.90)
+        text.set_fontproperties(EN_FONT)
+    fig.suptitle("Impact of Query Optimization on Manual Quality Scores", fontproperties=EN_FONT, fontsize=17, color=TEXT, y=0.90)
     fig.tight_layout(rect=[0, 0, 1, 0.86])
     fig.savefig(OUTPUT_DIR / "fig02_manual_quality.png", dpi=240)
     plt.close(fig)
@@ -236,26 +255,26 @@ def plot_latency_breakdown(data: dict[str, dict[str, dict]]) -> None:
     generate_vals = np.array([r["generate"] for r in rows])
     first_vals = np.array([r["first_token"] for r in rows])
 
-    ax.barh(y, rewrite_vals, color=ACCENT, label="改写")
-    ax.barh(y, retrieve_vals, left=rewrite_vals, color=SECONDARY, label="检索")
-    ax.barh(y, generate_vals, left=rewrite_vals + retrieve_vals, color=PRIMARY, label="生成")
-    ax.scatter(first_vals, y, color=ACCENT_RED, s=48, zorder=3, label="首字响应时间")
+    ax.barh(y, rewrite_vals, color=ACCENT, label="Rewrite")
+    ax.barh(y, retrieve_vals, left=rewrite_vals, color=SECONDARY, label="Retrieve")
+    ax.barh(y, generate_vals, left=rewrite_vals + retrieve_vals, color=PRIMARY, label="Generate")
+    ax.scatter(first_vals, y, color=ACCENT_RED, s=48, zorder=3, label="First Token Latency")
 
     for idx, row in enumerate(rows):
         total = row["rewrite"] + row["retrieve"] + row["generate"]
-        ax.text(total + 0.12, idx, f"{total:.2f}s", va="center", ha="left", color=TEXT, fontproperties=ZH_FONT, fontsize=10)
-        ax.text(row["first_token"] + 0.08, idx - 0.17, f"{row['first_token']:.2f}s", va="center", ha="left", color=ACCENT_RED, fontproperties=ZH_FONT, fontsize=9)
+        ax.text(total + 0.12, idx, f"{total:.2f}s", va="center", ha="left", color=TEXT, fontproperties=EN_FONT, fontsize=10)
+        ax.text(row["first_token"] + 0.08, idx - 0.17, f"{row['first_token']:.2f}s", va="center", ha="left", color=ACCENT_RED, fontproperties=EN_FONT, fontsize=9)
 
     ax.set_yticks(y)
     ax.set_yticklabels([r["label"] for r in rows])
     ax.invert_yaxis()
-    ax.set_xlabel("平均耗时 (s)", fontproperties=ZH_FONT, color=TEXT)
+    ax.set_xlabel("Average Time (s)", fontproperties=EN_FONT, color=TEXT)
     apply_axis_style(ax, "x")
     set_axis_fonts(ax)
     legend = ax.legend(frameon=False, loc="upper left", bbox_to_anchor=(0.0, 1.10), ncol=4)
     for text in legend.get_texts():
-        text.set_fontproperties(ZH_FONT)
-    fig.suptitle("查询优化的时延构成与首字响应变化", fontproperties=ZH_FONT, fontsize=17, color=TEXT, y=0.99)
+        text.set_fontproperties(EN_FONT)
+    fig.suptitle("Latency Breakdown and First Token Latency Change", fontproperties=EN_FONT, fontsize=17, color=TEXT, y=0.99)
     fig.tight_layout(rect=[0, 0, 1, 0.90])
     fig.savefig(OUTPUT_DIR / "fig03_latency_breakdown.png", dpi=240)
     plt.close(fig)
@@ -264,28 +283,28 @@ def plot_latency_breakdown(data: dict[str, dict[str, dict]]) -> None:
 def draw_confusion_matrix(ax, matrix: np.ndarray, title: str) -> None:
     cmap = plt.cm.Blues
     ax.imshow(matrix, cmap=cmap, vmin=0, vmax=max(1, matrix.max()))
-    labels = [["TN\n正常回答", "FP\n误拒"], ["FN\n应拒未拒", "TP\n正确拒答"]]
+    labels = [["TN\nAnswered", "FP\nFalse Refusal"], ["FN\nMissed Refusal", "TP\nCorrect Refusal"]]
     for i in range(2):
         for j in range(2):
             value = int(matrix[i, j])
             text_color = "white" if value > matrix.max() / 2 else TEXT
-            ax.text(j, i, f"{labels[i][j]}\n{value}", ha="center", va="center", fontsize=11, fontproperties=ZH_FONT, color=text_color)
+            ax.text(j, i, f"{labels[i][j]}\n{value}", ha="center", va="center", fontsize=11, fontproperties=EN_FONT, color=text_color)
     ax.set_xticks([0, 1])
     ax.set_yticks([0, 1])
-    ax.set_xticklabels(["预测回答", "预测拒答"])
-    ax.set_yticklabels(["真实应答", "真实应拒"])
+    ax.set_xticklabels(["Answered", "Refused"])
+    ax.set_yticklabels(["Should Answer", "Should Refuse"])
     set_axis_fonts(ax)
-    ax.set_title(title, fontproperties=ZH_FONT, fontsize=13, color=TEXT, pad=10)
+    ax.set_title(title, fontproperties=EN_FONT, fontsize=13, color=TEXT, pad=10)
 
 
 def plot_refusal_matrices(data: dict[str, dict[str, dict]]) -> None:
     fig, axes = plt.subplots(2, 2, figsize=(10.5, 8.6))
-    fig.suptitle("查询优化前后保守回答行为对比", fontproperties=ZH_FONT, fontsize=17, color=TEXT, y=0.98)
+    fig.suptitle("Refusal Behavior Before and After Query Optimization", fontproperties=EN_FONT, fontsize=17, color=TEXT, y=0.98)
     order = [
-        ("主测试集", "without"),
-        ("主测试集", "with"),
-        ("口语化子集", "without"),
-        ("口语化子集", "with"),
+        ("Main Test Set", "without"),
+        ("Main Test Set", "with"),
+        ("Conversational Subset", "without"),
+        ("Conversational Subset", "with"),
     ]
     for ax, (scene, variant) in zip(axes.flat, order):
         confusion = compute_confusion(data[scene][variant]["results"])
@@ -311,7 +330,7 @@ def plot_refusal_matrices(data: dict[str, dict[str, dict]]) -> None:
             va="center",
             transform=ax.transAxes,
             color=MUTED,
-            fontproperties=ZH_FONT,
+            fontproperties=EN_FONT,
             fontsize=10,
         )
 
@@ -328,7 +347,7 @@ def plot_first_token_boxplot(data: dict[str, dict[str, dict]]) -> None:
         with_opt = [float(r["first_token_seconds"]) for r in data[scene]["with"]["results"]]
         bp = ax.boxplot(
             [without, with_opt],
-            tick_labels=["无优化", "查询优化"],
+            tick_labels=["Without", "With"],
             patch_artist=True,
             widths=0.5,
             showfliers=False,
@@ -339,17 +358,17 @@ def plot_first_token_boxplot(data: dict[str, dict[str, dict]]) -> None:
             patch.set_alpha(0.72)
 
         ax.axhline(y=8, color=ACCENT_RED, linestyle="--", linewidth=1.2, alpha=0.8)
-        ax.text(2.42, 8.18, "8s", fontsize=9, fontproperties=ZH_FONT, color=ACCENT_RED, ha="center")
-        ax.set_title(scene, fontproperties=ZH_FONT, fontsize=14, color=TEXT)
-        ax.set_ylabel("首字响应时间 (s)", fontproperties=ZH_FONT, color=TEXT)
+        ax.text(2.42, 8.18, "8s", fontsize=9, fontproperties=EN_FONT, color=ACCENT_RED, ha="center")
+        ax.set_title(scene, fontproperties=EN_FONT, fontsize=14, color=TEXT)
+        ax.set_ylabel("First Token Latency (s)", fontproperties=EN_FONT, color=TEXT)
         apply_axis_style(ax, "y")
         set_axis_fonts(ax)
 
         for idx, values in enumerate([without, with_opt], start=1):
             median = float(np.median(values))
-            ax.text(idx, median - 0.5, f"中位数 {median:.2f}s", va="top", ha="center", fontsize=9, fontproperties=ZH_FONT, color=TEXT)
+            ax.text(idx, median - 0.5, f"Median {median:.2f}s", va="top", ha="center", fontsize=9, fontproperties=EN_FONT, color=TEXT)
 
-    fig.suptitle("首字响应时间分布对比", fontproperties=ZH_FONT, fontsize=17, color=TEXT, y=0.98)
+    fig.suptitle("First Token Latency Distribution Comparison", fontproperties=EN_FONT, fontsize=17, color=TEXT, y=0.98)
     fig.tight_layout(rect=[0, 0, 1, 0.94])
     fig.savefig(OUTPUT_DIR / "fig09_first_token_boxplot.png", dpi=240)
     plt.close(fig)
@@ -362,6 +381,7 @@ def plot_hit_by_question_type(data: dict[str, dict[str, dict]]) -> None:
         without_rows = data[scene]["without"]["results"]
         with_rows = data[scene]["with"]["results"]
         question_types = sorted({r["question_type"] for r in without_rows} | {r["question_type"] for r in with_rows})
+        question_types_en = [CATEGORY_EN.get(qt, qt) for qt in question_types]
         x = np.arange(len(question_types))
         width = 0.34
         without_hit = []
@@ -375,13 +395,13 @@ def plot_hit_by_question_type(data: dict[str, dict[str, dict]]) -> None:
             without_hit.append(w_hit)
             with_hit.append(x_hit)
 
-        bars1 = ax.bar(x - width / 2, without_hit, width=width, color=SECONDARY, label="无优化")
-        bars2 = ax.bar(x + width / 2, with_hit, width=width, color=PRIMARY, label="查询优化")
+        bars1 = ax.bar(x - width / 2, without_hit, width=width, color=SECONDARY, label="Without Optimization")
+        bars2 = ax.bar(x + width / 2, with_hit, width=width, color=PRIMARY, label="With Optimization")
         ax.set_xticks(x)
-        ax.set_xticklabels(question_types, rotation=18)
+        ax.set_xticklabels(question_types_en, rotation=18)
         ax.set_ylim(0, 115)
-        ax.set_ylabel("目标文档命中率 (%)", fontproperties=ZH_FONT, color=TEXT)
-        ax.set_title(scene, fontproperties=ZH_FONT, fontsize=14, color=TEXT)
+        ax.set_ylabel("Target Hit Rate (%)", fontproperties=EN_FONT, color=TEXT)
+        ax.set_title(scene, fontproperties=EN_FONT, fontsize=14, color=TEXT)
         apply_axis_style(ax, "y")
         set_axis_fonts(ax)
 
@@ -389,30 +409,30 @@ def plot_hit_by_question_type(data: dict[str, dict[str, dict]]) -> None:
             delta = with_hit[idx] - without_hit[idx]
             if abs(delta) >= 0.1:
                 color = ACCENT_GREEN if delta > 0 else ACCENT_RED
-                ax.text(idx, max(without_hit[idx], with_hit[idx]) + 3.0, f"{delta:+.0f}pp", ha="center", va="bottom", color=color, fontproperties=ZH_FONT, fontsize=9)
+                ax.text(idx, max(without_hit[idx], with_hit[idx]) + 3.0, f"{delta:+.0f}pp", ha="center", va="bottom", color=color, fontproperties=EN_FONT, fontsize=9)
 
     legend = axes[0].legend(frameon=False, loc="upper right")
     for text in legend.get_texts():
-        text.set_fontproperties(ZH_FONT)
-    fig.suptitle("按题型观察查询优化对命中率的影响", fontproperties=ZH_FONT, fontsize=17, color=TEXT, y=0.98)
+        text.set_fontproperties(EN_FONT)
+    fig.suptitle("Query Optimization Impact on Hit Rate by Question Type", fontproperties=EN_FONT, fontsize=17, color=TEXT, y=0.98)
     fig.tight_layout(rect=[0, 0, 1, 0.94])
     fig.savefig(OUTPUT_DIR / "fig10_hit_by_question_type.png", dpi=240)
     plt.close(fig)
 
 
 def plot_question_type_delta(data: dict[str, dict[str, dict]]) -> None:
-    before = data["主测试集"]["without"]["manual"]["by_question_type"]
-    after = data["主测试集"]["with"]["manual"]["by_question_type"]
+    before = data["Main Test Set"]["without"]["manual"]["by_question_type"]
+    after = data["Main Test Set"]["with"]["manual"]["by_question_type"]
     question_types = [
         qtype
         for qtype, values in after.items()
         if int(values.get("count", 0)) >= 3
     ]
     metrics = [
-        ("avg_correctness", "正确性"),
-        ("avg_completeness", "完整性"),
-        ("avg_faithfulness", "忠实性"),
-        ("avg_retrieval_relevance", "检索相关性"),
+        ("avg_correctness", "Correctness"),
+        ("avg_completeness", "Completeness"),
+        ("avg_faithfulness", "Faithfulness"),
+        ("avg_retrieval_relevance", "Retrieval Relevance"),
     ]
     matrix = np.array(
         [
@@ -430,18 +450,18 @@ def plot_question_type_delta(data: dict[str, dict[str, dict]]) -> None:
         for j in range(matrix.shape[1]):
             val = matrix[i, j]
             color = "white" if abs(val) > vmax * 0.55 else TEXT
-            ax.text(j, i, f"{val:+.2f}", ha="center", va="center", color=color, fontproperties=ZH_FONT, fontsize=10)
+            ax.text(j, i, f"{val:+.2f}", ha="center", va="center", color=color, fontproperties=EN_FONT, fontsize=10)
 
     ax.set_xticks(np.arange(len(metrics)))
     ax.set_xticklabels([label for _, label in metrics], rotation=0)
     ax.set_yticks(np.arange(len(question_types)))
-    ax.set_yticklabels(question_types)
+    ax.set_yticklabels([CATEGORY_EN.get(qt, qt) for qt in question_types])
     set_axis_fonts(ax)
-    ax.set_title("主测试集中不同题型的人工评分增益分布", fontproperties=ZH_FONT, fontsize=17, color=TEXT, pad=12)
+    ax.set_title("Manual Score Gain Distribution by Question Type (Main Test Set)", fontproperties=EN_FONT, fontsize=17, color=TEXT, pad=12)
     cbar = fig.colorbar(im, ax=ax, fraction=0.045, pad=0.04)
     cbar.ax.tick_params(labelsize=9, colors=TEXT)
     for label in cbar.ax.get_yticklabels():
-        label.set_fontproperties(ZH_FONT)
+        label.set_fontproperties(EN_FONT)
     fig.tight_layout()
     fig.savefig(OUTPUT_DIR / "fig05_question_type_delta_main.png", dpi=240)
     plt.close(fig)
@@ -533,7 +553,7 @@ def main() -> None:
     plot_hit_by_question_type(data)
     plot_question_type_delta(data)
     write_metrics_csv(data)
-    print(f"[OK] 查询优化实验图表已生成到: {OUTPUT_DIR}")
+    print(f"[OK] Figures saved to: {OUTPUT_DIR}")
 
 
 if __name__ == "__main__":

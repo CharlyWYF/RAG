@@ -33,6 +33,19 @@ ACCENT_RED = "#D1495B"
 ACCENT_GOLD = "#E9C46A"
 ACCENT_BLUE = "#4E79A7"
 
+CATEGORY_EN = {
+    "机制类": "Mechanism",
+    "定义类": "Definition",
+    "对比类": "Comparison",
+    "综合类": "Comprehensive",
+    "证据不足类": "Insufficient Evidence",
+    "字段类": "Field",
+    "安全类": "Security",
+    "私有协议类": "Private Protocol",
+    "规则类": "Rule",
+    "综合": "Cross-Protocol",
+}
+
 
 @dataclass
 class RunMetrics:
@@ -117,12 +130,13 @@ def _avg(rows: list[dict[str, str]], key: str) -> float:
 
 
 def _load_font() -> FontProperties:
-    if FONT_PATH.exists():
-        return FontProperties(fname=str(FONT_PATH))
+    font_path = FONT_PATH
+    if font_path.exists():
+        return FontProperties(fname=str(font_path))
     return FontProperties(family="DejaVu Sans")
 
 
-ZH_FONT = _load_font()
+EN_FONT = _load_font()
 rcParams["axes.unicode_minus"] = False
 rcParams["figure.facecolor"] = BG
 rcParams["axes.facecolor"] = BG
@@ -159,9 +173,9 @@ def style_axis(ax, grid_axis: str = "y") -> None:
     ax.grid(axis=grid_axis, color=GRID, linestyle="--", linewidth=0.8, alpha=0.9)
     ax.set_axisbelow(True)
     for label in ax.get_xticklabels():
-        label.set_fontproperties(ZH_FONT)
+        label.set_fontproperties(EN_FONT)
     for label in ax.get_yticklabels():
-        label.set_fontproperties(ZH_FONT)
+        label.set_fontproperties(EN_FONT)
 
 
 def annotate_bar_values(ax, bars, formatter="{:.2f}", dy=0.03, color=TEXT) -> None:
@@ -174,7 +188,7 @@ def annotate_bar_values(ax, bars, formatter="{:.2f}", dy=0.03, color=TEXT) -> No
             formatter.format(height),
             ha="center",
             va="bottom",
-            fontproperties=ZH_FONT,
+            fontproperties=EN_FONT,
             fontsize=10,
             color=color,
         )
@@ -182,10 +196,10 @@ def annotate_bar_values(ax, bars, formatter="{:.2f}", dy=0.03, color=TEXT) -> No
 
 def plot_manual_score_overview(runs: list[RunMetrics], output_dir: Path) -> None:
     metrics = [
-        ("correctness", "正确性"),
-        ("completeness", "完整性"),
-        ("faithfulness", "忠实度"),
-        ("relevance", "检索相关性"),
+        ("correctness", "Correctness"),
+        ("completeness", "Completeness"),
+        ("faithfulness", "Faithfulness"),
+        ("relevance", "Retrieval Relevance"),
     ]
     x = np.arange(len(metrics))
     width = 0.22
@@ -208,10 +222,10 @@ def plot_manual_score_overview(runs: list[RunMetrics], output_dir: Path) -> None
         annotate_bar_values(ax, bars)
 
     ax.set_xticks(x)
-    ax.set_xticklabels([label for _, label in metrics], fontproperties=ZH_FONT, fontsize=11)
+    ax.set_xticklabels([label for _, label in metrics], fontproperties=EN_FONT, fontsize=11)
     ax.set_ylim(0, 2.32)
-    ax.set_ylabel("人工评分均值（0-2）", fontproperties=ZH_FONT, fontsize=11, color=TEXT)
-    ax.set_title("prompt_v1 与 prompt_v2 的四项人工评分对比", fontproperties=ZH_FONT, fontsize=16, color=TEXT, pad=14)
+    ax.set_ylabel("Average Manual Score (0-2)", fontproperties=EN_FONT, fontsize=11, color=TEXT)
+    ax.set_title("Manual Score Comparison: prompt_v1 vs prompt_v2", fontproperties=EN_FONT, fontsize=16, color=TEXT, pad=14)
     style_axis(ax)
 
     if len(runs) == 2:
@@ -227,7 +241,7 @@ def plot_manual_score_overview(runs: list[RunMetrics], output_dir: Path) -> None
                 label,
                 ha="center",
                 va="bottom",
-                fontproperties=ZH_FONT,
+                fontproperties=EN_FONT,
                 fontsize=10.5,
                 color=delta_color,
                 bbox={"boxstyle": "round,pad=0.2", "facecolor": "white", "edgecolor": delta_color, "linewidth": 1.0},
@@ -235,7 +249,7 @@ def plot_manual_score_overview(runs: list[RunMetrics], output_dir: Path) -> None
 
     legend = ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, 1.04), ncol=2)
     for text in legend.get_texts():
-        text.set_fontproperties(ZH_FONT)
+        text.set_fontproperties(EN_FONT)
 
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     fig.savefig(output_dir / "fig01_manual_score_overview.png", dpi=220, bbox_inches="tight")
@@ -251,20 +265,20 @@ def plot_refusal_confusion(runs: list[RunMetrics], output_dir: Path) -> None:
 
     fig, ax = plt.subplots(figsize=(11.8, 5.8))
     y = np.arange(len(labels))
-    ax.barh(y, tp, color="#2A9D8F", edgecolor="white", height=0.55, label="应拒且拒（TP）")
-    ax.barh(y, fn, left=tp, color="#F4A261", edgecolor="white", height=0.55, label="应拒未拒（FN）")
-    ax.barh(y, fp, left=tp + fn, color="#E76F51", edgecolor="white", height=0.55, label="误拒答（FP）")
-    ax.barh(y, tn, left=tp + fn + fp, color="#B8C5D6", edgecolor="white", height=0.55, label="正常回答（TN）")
+    ax.barh(y, tp, color="#2A9D8F", edgecolor="white", height=0.55, label="Correct Refusal (TP)")
+    ax.barh(y, fn, left=tp, color="#F4A261", edgecolor="white", height=0.55, label="Missed Refusal (FN)")
+    ax.barh(y, fp, left=tp + fn, color="#E76F51", edgecolor="white", height=0.55, label="False Refusal (FP)")
+    ax.barh(y, tn, left=tp + fn + fp, color="#B8C5D6", edgecolor="white", height=0.55, label="Correct Answer (TN)")
 
     for idx, run in enumerate(runs):
         success = run.refusal_success_rate * 100
         ax.text(
             67.1,
             idx,
-            f"拒答成功率 {success:.0f}%",
+            f"Refusal Rate {success:.0f}%",
             va="center",
             ha="right",
-            fontproperties=ZH_FONT,
+            fontproperties=EN_FONT,
             fontsize=10.5,
             color=TEXT,
             bbox={"boxstyle": "round,pad=0.25", "facecolor": "white", "edgecolor": "#D7E0E7"},
@@ -272,14 +286,14 @@ def plot_refusal_confusion(runs: list[RunMetrics], output_dir: Path) -> None:
 
     ax.set_xlim(0, 68)
     ax.set_yticks(y)
-    ax.set_yticklabels(labels, fontproperties=ZH_FONT, fontsize=11)
-    ax.set_xlabel("题目数量（共 66 题）", fontproperties=ZH_FONT, fontsize=11, color=TEXT)
-    ax.set_title("prompt_v1 与 prompt_v2 的保守回答行为对比", fontproperties=ZH_FONT, fontsize=16, color=TEXT)
+    ax.set_yticklabels(labels, fontproperties=EN_FONT, fontsize=11)
+    ax.set_xlabel("Number of Questions (66 total)", fontproperties=EN_FONT, fontsize=11, color=TEXT)
+    ax.set_title("Refusal Behavior Comparison: prompt_v1 vs prompt_v2", fontproperties=EN_FONT, fontsize=16, color=TEXT)
     style_axis(ax, grid_axis="x")
     ax.invert_yaxis()
     legend = ax.legend(frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.2), ncol=4)
     for text in legend.get_texts():
-        text.set_fontproperties(ZH_FONT)
+        text.set_fontproperties(EN_FONT)
 
     fig.tight_layout()
     fig.savefig(output_dir / "fig02_refusal_confusion_comparison.png", dpi=220, bbox_inches="tight")
@@ -302,9 +316,9 @@ def plot_refusal_confusion_matrix(runs: list[RunMetrics], output_dir: Path) -> N
 
         ax.set_xticks([0, 1])
         ax.set_yticks([0, 1])
-        ax.set_xticklabels(["系统拒答", "系统正常回答"], fontproperties=ZH_FONT, fontsize=10)
-        ax.set_yticklabels(["应保守回答", "不应保守回答"], fontproperties=ZH_FONT, fontsize=10)
-        ax.set_title(run.label, fontproperties=ZH_FONT, fontsize=14, color=TEXT, pad=10)
+        ax.set_xticklabels(["System Refused", "System Answered"], fontproperties=EN_FONT, fontsize=10)
+        ax.set_yticklabels(["Should Refuse", "Should Not Refuse"], fontproperties=EN_FONT, fontsize=10)
+        ax.set_title(run.label, fontproperties=EN_FONT, fontsize=14, color=TEXT, pad=10)
 
         total = matrix.sum()
         for i in range(2):
@@ -318,7 +332,7 @@ def plot_refusal_confusion_matrix(runs: list[RunMetrics], output_dir: Path) -> N
                     f"{count}\n{ratio:.1f}%",
                     ha="center",
                     va="center",
-                    fontproperties=ZH_FONT,
+                    fontproperties=EN_FONT,
                     fontsize=11,
                     color=text_color,
                 )
@@ -333,11 +347,11 @@ def plot_refusal_confusion_matrix(runs: list[RunMetrics], output_dir: Path) -> N
         ax.text(
             0.5,
             -0.18,
-            f"拒答成功率：{success:.0f}%",
+            f"Refusal Rate: {success:.0f}%",
             transform=ax.transAxes,
             ha="center",
             va="center",
-            fontproperties=ZH_FONT,
+            fontproperties=EN_FONT,
             fontsize=10.5,
             color=TEXT,
             bbox={"boxstyle": "round,pad=0.25", "facecolor": "white", "edgecolor": "#D7E0E7"},
@@ -347,13 +361,13 @@ def plot_refusal_confusion_matrix(runs: list[RunMetrics], output_dir: Path) -> N
     cax = fig.add_axes([0.89, 0.22, 0.025, 0.56])
     cbar = fig.colorbar(im, cax=cax)
     cbar.ax.tick_params(labelsize=9, colors=TEXT)
-    fig.suptitle("prompt_v1 与 prompt_v2 的拒答混淆矩阵对比", fontproperties=ZH_FONT, fontsize=16, color=TEXT, y=0.98)
+    fig.suptitle("Refusal Confusion Matrix Comparison: prompt_v1 vs prompt_v2", fontproperties=EN_FONT, fontsize=16, color=TEXT, y=0.98)
     fig.savefig(output_dir / "fig02_refusal_confusion_matrix.png", dpi=220, bbox_inches="tight")
     plt.close(fig)
 
 
 def plot_capability_profile(runs: list[RunMetrics], output_dir: Path) -> None:
-    labels = ["正确性", "拒答能力", "响应效率"]
+    labels = ["Correctness", "Refusal Capability", "Response Efficiency"]
     angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
     angles += angles[:1]
 
@@ -366,10 +380,10 @@ def plot_capability_profile(runs: list[RunMetrics], output_dir: Path) -> None:
     ax.set_theta_direction(-1)
 
     ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(labels, fontproperties=ZH_FONT, fontsize=12, color=TEXT)
+    ax.set_xticklabels(labels, fontproperties=EN_FONT, fontsize=12, color=TEXT)
     ax.set_ylim(0, 1.0)
     ax.set_yticks([0.25, 0.5, 0.75, 1.0])
-    ax.set_yticklabels(["0.25", "0.50", "0.75", "1.00"], fontproperties=ZH_FONT, fontsize=9, color="#6B7C8E")
+    ax.set_yticklabels(["0.25", "0.50", "0.75", "1.00"], fontproperties=EN_FONT, fontsize=9, color="#6B7C8E")
     ax.yaxis.grid(True, linestyle="--", linewidth=0.8, color=GRID)
     ax.xaxis.grid(True, linestyle="--", linewidth=0.8, color=GRID)
     ax.spines["polar"].set_color("#B9C6D2")
@@ -386,25 +400,25 @@ def plot_capability_profile(runs: list[RunMetrics], output_dir: Path) -> None:
         ax.fill(angles, values, color=color, alpha=0.20)
         ax.scatter(angles[:-1], values[:-1], color=color, s=55, edgecolor="white", linewidth=1.0, zorder=3)
 
-    ax.set_title("prompt_v1 与 prompt_v2 的三维能力轮廓", fontproperties=ZH_FONT, fontsize=16, color=TEXT, pad=24)
+    ax.set_title("Three-Dimensional Capability Profile: prompt_v1 vs prompt_v2", fontproperties=EN_FONT, fontsize=16, color=TEXT, pad=24)
 
     legend = ax.legend(loc="upper right", bbox_to_anchor=(1.24, 1.13), frameon=False)
     for text in legend.get_texts():
-        text.set_fontproperties(ZH_FONT)
+        text.set_fontproperties(EN_FONT)
 
     summary_lines = []
     for run in runs:
         summary_lines.append(
-            f"{run.label}：正确性 {run.correctness:.2f}，拒答 {run.refusal_success_rate * 100:.0f}%，首字响应 {run.avg_first_token_seconds:.2f}s"
+            f"{run.label}: Correctness {run.correctness:.2f}, Refusal {run.refusal_success_rate * 100:.0f}%, First Token {run.avg_first_token_seconds:.2f}s"
         )
-    note = "\n".join(summary_lines) + "\n注：响应效率 = 最快方案首字响应时间 / 当前方案首字响应时间"
+    note = "\n".join(summary_lines) + "\nNote: Response Efficiency = Fastest First Token / Current First Token"
     fig.text(
         0.5,
         0.06,
         note,
         ha="center",
         va="center",
-        fontproperties=ZH_FONT,
+        fontproperties=EN_FONT,
         fontsize=10.2,
         color=TEXT,
         bbox={"boxstyle": "round,pad=0.45", "facecolor": "white", "edgecolor": "#D7E0E7"},
@@ -417,15 +431,15 @@ def plot_capability_profile(runs: list[RunMetrics], output_dir: Path) -> None:
 
 def plot_question_type_focus(runs: list[RunMetrics], output_dir: Path) -> None:
     focus_types = [
-        ("对比类", "对比类问题"),
-        ("机制类", "机制类问题"),
-        ("综合类", "综合类问题"),
+        ("对比类", "Comparison"),
+        ("机制类", "Mechanism"),
+        ("综合类", "Comprehensive"),
     ]
     metrics = [
-        ("avg_correctness", "正确性"),
-        ("avg_completeness", "完整性"),
-        ("avg_faithfulness", "忠实度"),
-        ("avg_retrieval_relevance", "检索相关性"),
+        ("avg_correctness", "Correctness"),
+        ("avg_completeness", "Completeness"),
+        ("avg_faithfulness", "Faithfulness"),
+        ("avg_retrieval_relevance", "Retrieval Relevance"),
     ]
 
     fig, axes = plt.subplots(1, len(focus_types), figsize=(14.2, 5.8), sharex=True)
@@ -441,7 +455,7 @@ def plot_question_type_focus(runs: list[RunMetrics], output_dir: Path) -> None:
 
         ax.set_title(
             f"{title}\n(n={left_stats['count']})",
-            fontproperties=ZH_FONT,
+            fontproperties=EN_FONT,
             fontsize=14,
             color=TEXT,
             pad=10,
@@ -470,7 +484,7 @@ def plot_question_type_focus(runs: list[RunMetrics], output_dir: Path) -> None:
                 f"{left_val:.2f}",
                 ha="right",
                 va="center",
-                fontproperties=ZH_FONT,
+                fontproperties=EN_FONT,
                 fontsize=9.5,
                 color=TEXT,
             )
@@ -480,7 +494,7 @@ def plot_question_type_focus(runs: list[RunMetrics], output_dir: Path) -> None:
                 f"{right_val:.2f}",
                 ha="left",
                 va="center",
-                fontproperties=ZH_FONT,
+                fontproperties=EN_FONT,
                 fontsize=9.5,
                 color=TEXT,
             )
@@ -490,16 +504,16 @@ def plot_question_type_focus(runs: list[RunMetrics], output_dir: Path) -> None:
                 f"{delta:+.2f}",
                 ha="left",
                 va="center",
-                fontproperties=ZH_FONT,
+                fontproperties=EN_FONT,
                 fontsize=9.8,
                 color=delta_color,
                 bbox={"boxstyle": "round,pad=0.18", "facecolor": "white", "edgecolor": delta_color, "linewidth": 0.9},
             )
 
         ax.set_yticks(y_positions)
-        ax.set_yticklabels([label for _, label in metrics], fontproperties=ZH_FONT, fontsize=10.5)
+        ax.set_yticklabels([label for _, label in metrics], fontproperties=EN_FONT, fontsize=10.5)
         ax.set_xlim(1.15, 2.08)
-        ax.set_xlabel("平均分（0-2）", fontproperties=ZH_FONT, fontsize=10.5, color=TEXT)
+        ax.set_xlabel("Average Score (0-2)", fontproperties=EN_FONT, fontsize=10.5, color=TEXT)
         style_axis(ax, grid_axis="x")
 
     handles = [
@@ -508,9 +522,9 @@ def plot_question_type_focus(runs: list[RunMetrics], output_dir: Path) -> None:
     ]
     legend = fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False)
     for text in legend.get_texts():
-        text.set_fontproperties(ZH_FONT)
+        text.set_fontproperties(EN_FONT)
 
-    fig.suptitle("prompt_v1 与 prompt_v2 在细分题型上的人工评分差异", fontproperties=ZH_FONT, fontsize=16, color=TEXT, y=1.06)
+    fig.suptitle("Manual Score Differences by Question Type: prompt_v1 vs prompt_v2", fontproperties=EN_FONT, fontsize=16, color=TEXT, y=1.06)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(output_dir / "fig04_question_type_focus.png", dpi=220, bbox_inches="tight")
     plt.close(fig)
