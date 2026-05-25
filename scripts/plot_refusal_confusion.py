@@ -7,16 +7,15 @@ import matplotlib
 from matplotlib.font_manager import FontProperties
 import numpy as np
 
-FONT_PATH = "assets/fonts/SourceHanSansSC-Regular.otf"
-font = FontProperties(fname=FONT_PATH)
-font_bold = FontProperties(fname=FONT_PATH, weight="bold")
+font = FontProperties(family="Times New Roman")
+font_bold = FontProperties(family="Times New Roman", weight="bold")
 matplotlib.rcParams["axes.unicode_minus"] = False
 
 RUNS = [
-    ("20260430_172612_without_rewrite", "主测试集 - 无改写"),
-    ("20260430_230707_with_rewrite", "主测试集 - 启用改写"),
-    ("20260501_000136_conversational_without_rewrite", "口语化子集 - 无改写"),
-    ("20260501_002532_conversational_with_rewrite", "口语化子集 - 启用改写"),
+    ("20260430_172612_without_rewrite", "Main Set - No Rewrite"),
+    ("20260430_230707_with_rewrite", "Main Set - With Rewrite"),
+    ("20260501_000136_conversational_without_rewrite", "Conv. Set - No Rewrite"),
+    ("20260501_002532_conversational_with_rewrite", "Conv. Set - With Rewrite"),
 ]
 
 EVAL_DIR = "runs/eval"
@@ -50,7 +49,7 @@ def compute_confusion(rows):
 
 def draw_confusion_matrix(ax, tp, fp, fn, tn, title):
     matrix = np.array([[tn, fp], [fn, tp]])
-    labels = [["TN\n正确回答", "FP\n误拒答"], ["FN\n过度自信", "TP\n正确拒答"]]
+    labels = [["TN\nCorrect", "FP\nFalse Refusal"], ["FN\nOverconfident", "TP\nCorrect Refusal"]]
 
     cmap = plt.cm.Blues
     ax.imshow(matrix, cmap=cmap, vmin=0)
@@ -65,15 +64,15 @@ def draw_confusion_matrix(ax, tp, fp, fn, tn, title):
 
     ax.set_xticks([0, 1])
     ax.set_yticks([0, 1])
-    ax.set_xticklabels(["实际回答", "实际拒答"], fontsize=10, fontproperties=font)
-    ax.set_yticklabels(["应答", "应拒"], fontsize=10, fontproperties=font)
-    ax.set_xlabel("预测", fontsize=10, fontproperties=font)
-    ax.set_ylabel("真实", fontsize=10, fontproperties=font)
-    ax.set_title(title, fontsize=12, fontproperties=font_bold, pad=10)
+    ax.set_xticklabels(["Answered", "Refused"], fontsize=10, fontproperties=font)
+    ax.set_yticklabels(["Should Answer", "Should Refuse"], fontsize=10, fontproperties=font)
+    ax.set_xlabel("System Output", fontsize=10, fontproperties=font)
+    ax.set_ylabel("Ground Truth", fontsize=10, fontproperties=font)
+    ax.set_title(title, fontsize=12, fontweight='bold', fontproperties=font_bold, pad=10)
 
 
 fig, axes = plt.subplots(2, 2, figsize=(10, 8))
-fig.suptitle("拒答行为 Confusion Matrix", fontsize=14, fontproperties=font_bold, y=0.98)
+fig.suptitle("Refusal Behavior Confusion Matrix", fontsize=14, fontweight='bold', fontproperties=font_bold, y=0.98)
 
 for idx, (run_dir, label) in enumerate(RUNS):
     rows = load_results(run_dir)
@@ -89,5 +88,6 @@ plt.tight_layout(rect=[0, 0, 1, 0.95])
 out_path = "runs/figures/refusal_confusion_matrix_comparison.png"
 os.makedirs(os.path.dirname(out_path), exist_ok=True)
 fig.savefig(out_path, dpi=150, bbox_inches="tight")
+fig.savefig(out_path.replace(".png", ".svg"), dpi=150, bbox_inches="tight")
 print(f"\nSaved to {out_path}")
 plt.close()

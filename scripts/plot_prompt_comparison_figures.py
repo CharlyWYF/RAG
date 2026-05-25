@@ -23,15 +23,15 @@ RUN_CONFIGS = [
 ]
 
 PALETTE = {
-    "prompt_v1": "#F2A65A",
-    "prompt_v2": "#2A9D8F",
+    "prompt_v1": "#4a6fa5",
+    "prompt_v2": "#3a7c72",
 }
 TEXT = "#243447"
 GRID = "#D8E1E8"
 BG = "#FBFCFE"
-ACCENT_RED = "#D1495B"
-ACCENT_GOLD = "#E9C46A"
-ACCENT_BLUE = "#4E79A7"
+ACCENT_RED = "#9b4d4d"
+ACCENT_GOLD = "#c4a96a"
+ACCENT_BLUE = "#5b7ea1"
 
 CATEGORY_EN = {
     "机制类": "Mechanism",
@@ -130,13 +130,11 @@ def _avg(rows: list[dict[str, str]], key: str) -> float:
 
 
 def _load_font() -> FontProperties:
-    font_path = FONT_PATH
-    if font_path.exists():
-        return FontProperties(fname=str(font_path))
-    return FontProperties(family="DejaVu Sans")
+    return FontProperties(family="Times New Roman")
 
 
 EN_FONT = _load_font()
+EN_FONT_BOLD = FontProperties(family="Times New Roman", weight="bold")
 rcParams["axes.unicode_minus"] = False
 rcParams["figure.facecolor"] = BG
 rcParams["axes.facecolor"] = BG
@@ -225,7 +223,7 @@ def plot_manual_score_overview(runs: list[RunMetrics], output_dir: Path) -> None
     ax.set_xticklabels([label for _, label in metrics], fontproperties=EN_FONT, fontsize=11)
     ax.set_ylim(0, 2.32)
     ax.set_ylabel("Average Manual Score (0-2)", fontproperties=EN_FONT, fontsize=11, color=TEXT)
-    ax.set_title("Manual Score Comparison: prompt_v1 vs prompt_v2", fontproperties=EN_FONT, fontsize=16, color=TEXT, pad=14)
+    ax.set_title("Manual Score Comparison: prompt_v1 vs prompt_v2", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT, pad=14)
     style_axis(ax)
 
     if len(runs) == 2:
@@ -233,7 +231,7 @@ def plot_manual_score_overview(runs: list[RunMetrics], output_dir: Path) -> None
         improved_values = values_by_run[1]
         for idx, (base_v, new_v) in enumerate(zip(base_values, improved_values)):
             rel_delta = ((new_v - base_v) / base_v * 100) if base_v else 0.0
-            delta_color = "#2A9D8F" if rel_delta >= 0 else "#D1495B"
+            delta_color = "#3a7c72" if rel_delta >= 0 else "#9b4d4d"
             label = f"{rel_delta:+.1f}%"
             ax.text(
                 x[idx],
@@ -253,6 +251,7 @@ def plot_manual_score_overview(runs: list[RunMetrics], output_dir: Path) -> None
 
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     fig.savefig(output_dir / "fig01_manual_score_overview.png", dpi=220, bbox_inches="tight")
+    fig.savefig(output_dir / "fig01_manual_score_overview.svg", dpi=220, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -265,10 +264,10 @@ def plot_refusal_confusion(runs: list[RunMetrics], output_dir: Path) -> None:
 
     fig, ax = plt.subplots(figsize=(11.8, 5.8))
     y = np.arange(len(labels))
-    ax.barh(y, tp, color="#2A9D8F", edgecolor="white", height=0.55, label="Correct Refusal (TP)")
-    ax.barh(y, fn, left=tp, color="#F4A261", edgecolor="white", height=0.55, label="Missed Refusal (FN)")
-    ax.barh(y, fp, left=tp + fn, color="#E76F51", edgecolor="white", height=0.55, label="False Refusal (FP)")
-    ax.barh(y, tn, left=tp + fn + fp, color="#B8C5D6", edgecolor="white", height=0.55, label="Correct Answer (TN)")
+    ax.barh(y, tp, color="#3a7c72", edgecolor="white", height=0.55, label="Correct Refusal (TP)")
+    ax.barh(y, fn, left=tp, color="#b08d57", edgecolor="white", height=0.55, label="Missed Refusal (FN)")
+    ax.barh(y, fp, left=tp + fn, color="#9b4d4d", edgecolor="white", height=0.55, label="False Refusal (FP)")
+    ax.barh(y, tn, left=tp + fn + fp, color="#98a8b8", edgecolor="white", height=0.55, label="Correct Answer (TN)")
 
     for idx, run in enumerate(runs):
         success = run.refusal_success_rate * 100
@@ -288,7 +287,7 @@ def plot_refusal_confusion(runs: list[RunMetrics], output_dir: Path) -> None:
     ax.set_yticks(y)
     ax.set_yticklabels(labels, fontproperties=EN_FONT, fontsize=11)
     ax.set_xlabel("Number of Questions (66 total)", fontproperties=EN_FONT, fontsize=11, color=TEXT)
-    ax.set_title("Refusal Behavior Comparison: prompt_v1 vs prompt_v2", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_title("Refusal Behavior Comparison: prompt_v1 vs prompt_v2", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT)
     style_axis(ax, grid_axis="x")
     ax.invert_yaxis()
     legend = ax.legend(frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.2), ncol=4)
@@ -297,6 +296,7 @@ def plot_refusal_confusion(runs: list[RunMetrics], output_dir: Path) -> None:
 
     fig.tight_layout()
     fig.savefig(output_dir / "fig02_refusal_confusion_comparison.png", dpi=220, bbox_inches="tight")
+    fig.savefig(output_dir / "fig02_refusal_confusion_comparison.svg", dpi=220, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -312,13 +312,13 @@ def plot_refusal_confusion_matrix(runs: list[RunMetrics], output_dir: Path) -> N
             [fp, tn],
         ], dtype=float)
 
-        im = ax.imshow(matrix, cmap="YlGnBu", vmin=0, vmax=max(1, matrix.max()))
+        im = ax.imshow(matrix, cmap=plt.cm.Blues, vmin=0, vmax=max(1, matrix.max()))
 
         ax.set_xticks([0, 1])
         ax.set_yticks([0, 1])
         ax.set_xticklabels(["System Refused", "System Answered"], fontproperties=EN_FONT, fontsize=10)
         ax.set_yticklabels(["Should Refuse", "Should Not Refuse"], fontproperties=EN_FONT, fontsize=10)
-        ax.set_title(run.label, fontproperties=EN_FONT, fontsize=14, color=TEXT, pad=10)
+        ax.set_title(run.label, fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=14, color=TEXT, pad=10)
 
         total = matrix.sum()
         for i in range(2):
@@ -361,8 +361,9 @@ def plot_refusal_confusion_matrix(runs: list[RunMetrics], output_dir: Path) -> N
     cax = fig.add_axes([0.89, 0.22, 0.025, 0.56])
     cbar = fig.colorbar(im, cax=cax)
     cbar.ax.tick_params(labelsize=9, colors=TEXT)
-    fig.suptitle("Refusal Confusion Matrix Comparison: prompt_v1 vs prompt_v2", fontproperties=EN_FONT, fontsize=16, color=TEXT, y=0.98)
+    fig.suptitle("Refusal Confusion Matrix Comparison: prompt_v1 vs prompt_v2", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT, y=0.98)
     fig.savefig(output_dir / "fig02_refusal_confusion_matrix.png", dpi=220, bbox_inches="tight")
+    fig.savefig(output_dir / "fig02_refusal_confusion_matrix.svg", dpi=220, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -400,7 +401,7 @@ def plot_capability_profile(runs: list[RunMetrics], output_dir: Path) -> None:
         ax.fill(angles, values, color=color, alpha=0.20)
         ax.scatter(angles[:-1], values[:-1], color=color, s=55, edgecolor="white", linewidth=1.0, zorder=3)
 
-    ax.set_title("Three-Dimensional Capability Profile: prompt_v1 vs prompt_v2", fontproperties=EN_FONT, fontsize=16, color=TEXT, pad=24)
+    ax.set_title("Three-Dimensional Capability Profile: prompt_v1 vs prompt_v2", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT, pad=24)
 
     legend = ax.legend(loc="upper right", bbox_to_anchor=(1.24, 1.13), frameon=False)
     for text in legend.get_texts():
@@ -426,6 +427,7 @@ def plot_capability_profile(runs: list[RunMetrics], output_dir: Path) -> None:
 
     fig.tight_layout(rect=(0, 0.1, 1, 1))
     fig.savefig(output_dir / "fig03_capability_profile.png", dpi=220, bbox_inches="tight")
+    fig.savefig(output_dir / "fig03_capability_profile.svg", dpi=220, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -455,7 +457,8 @@ def plot_question_type_focus(runs: list[RunMetrics], output_dir: Path) -> None:
 
         ax.set_title(
             f"{title}\n(n={left_stats['count']})",
-            fontproperties=EN_FONT,
+            fontweight='bold',
+            fontproperties=EN_FONT_BOLD,
             fontsize=14,
             color=TEXT,
             pad=10,
@@ -465,7 +468,7 @@ def plot_question_type_focus(runs: list[RunMetrics], output_dir: Path) -> None:
             left_val = float(left_stats[metric_key])
             right_val = float(right_stats[metric_key])
             delta = right_val - left_val
-            delta_color = "#2A9D8F" if delta >= 0 else "#D1495B"
+            delta_color = "#3a7c72" if delta >= 0 else "#9b4d4d"
 
             ax.plot(
                 [left_val, right_val],
@@ -478,26 +481,51 @@ def plot_question_type_focus(runs: list[RunMetrics], output_dir: Path) -> None:
             ax.scatter(left_val, y, s=90, color=PALETTE[left_run.label], edgecolor="white", linewidth=1.2, zorder=3)
             ax.scatter(right_val, y, s=90, color=PALETTE[right_run.label], edgecolor="white", linewidth=1.2, zorder=3)
 
-            ax.text(
-                left_val - 0.03,
-                y + 0.16,
-                f"{left_val:.2f}",
-                ha="right",
-                va="center",
-                fontproperties=EN_FONT,
-                fontsize=9.5,
-                color=TEXT,
-            )
-            ax.text(
-                right_val + 0.03,
-                y + 0.16,
-                f"{right_val:.2f}",
-                ha="left",
-                va="center",
-                fontproperties=EN_FONT,
-                fontsize=9.5,
-                color=TEXT,
-            )
+            # When values are close, place larger value label on the right
+            gap = abs(right_val - left_val)
+            if gap < 0.35:
+                hi, lo = max(left_val, right_val), min(left_val, right_val)
+                ax.text(
+                    lo - 0.06,
+                    y + 0.16,
+                    f"{lo:.2f}",
+                    ha="right",
+                    va="center",
+                    fontproperties=EN_FONT,
+                    fontsize=9.5,
+                    color=TEXT,
+                )
+                ax.text(
+                    hi + 0.06,
+                    y + 0.16,
+                    f"{hi:.2f}",
+                    ha="left",
+                    va="center",
+                    fontproperties=EN_FONT,
+                    fontsize=9.5,
+                    color=TEXT,
+                )
+            else:
+                ax.text(
+                    left_val - 0.03,
+                    y + 0.16,
+                    f"{left_val:.2f}",
+                    ha="right",
+                    va="center",
+                    fontproperties=EN_FONT,
+                    fontsize=9.5,
+                    color=TEXT,
+                )
+                ax.text(
+                    right_val + 0.03,
+                    y + 0.16,
+                    f"{right_val:.2f}",
+                    ha="left",
+                    va="center",
+                    fontproperties=EN_FONT,
+                    fontsize=9.5,
+                    color=TEXT,
+                )
             ax.text(
                 max(left_val, right_val) + 0.08,
                 y,
@@ -524,9 +552,10 @@ def plot_question_type_focus(runs: list[RunMetrics], output_dir: Path) -> None:
     for text in legend.get_texts():
         text.set_fontproperties(EN_FONT)
 
-    fig.suptitle("Manual Score Differences by Question Type: prompt_v1 vs prompt_v2", fontproperties=EN_FONT, fontsize=16, color=TEXT, y=1.06)
+    fig.suptitle("Manual Score Differences by Question Type: prompt_v1 vs prompt_v2", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT, y=1.06)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(output_dir / "fig04_question_type_focus.png", dpi=220, bbox_inches="tight")
+    fig.savefig(output_dir / "fig04_question_type_focus.svg", dpi=220, bbox_inches="tight")
     plt.close(fig)
 
 

@@ -57,13 +57,11 @@ CATEGORY_EN = {
 
 
 def _load_font() -> FontProperties:
-    font_path = PROJECT_ROOT / "assets" / "fonts" / "SourceHanSansSC-Regular.otf"
-    if font_path.exists():
-        return FontProperties(fname=str(font_path))
-    return FontProperties(family="DejaVu Sans")
+    return FontProperties(family="Times New Roman")
 
 
 EN_FONT = _load_font()
+EN_FONT_BOLD = FontProperties(family="Times New Roman", weight="bold")
 rcParams["axes.unicode_minus"] = False
 rcParams["figure.facecolor"] = BG
 rcParams["axes.facecolor"] = BG
@@ -157,7 +155,7 @@ def plot_overall_tradeoff(data: dict[str, dict[str, dict]]) -> None:
         after_vals = [float(data[s]["with"]["summary"][field]) for s in scenes]
         ax.bar(x - width / 2, before_vals, width=width, color=SECONDARY, label="Without Optimization")
         ax.bar(x + width / 2, after_vals, width=width, color=PRIMARY, label="With Optimization")
-        ax.set_title(title, fontproperties=EN_FONT, fontsize=14, color=TEXT)
+        ax.set_title(title, fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=14, color=TEXT)
         ax.set_xticks(x)
         ax.set_xticklabels(scenes)
         if metric_type == "rate":
@@ -189,9 +187,10 @@ def plot_overall_tradeoff(data: dict[str, dict[str, dict]]) -> None:
     legend = axes[0].legend(frameon=False, loc="upper left", bbox_to_anchor=(0.0, 1.18))
     for text in legend.get_texts():
         text.set_fontproperties(EN_FONT)
-    fig.suptitle("Impact of Query Optimization on Hit Rate, Source Coverage, and Latency", fontproperties=EN_FONT, fontsize=17, color=TEXT, y=0.87)
+    fig.suptitle("Impact of Query Optimization on Hit Rate, Source Coverage, and Latency", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=17, color=TEXT, y=0.87)
     fig.tight_layout(rect=[0, 0, 1, 0.84])
     fig.savefig(OUTPUT_DIR / "fig01_overall_tradeoff.png", dpi=240)
+    fig.savefig(OUTPUT_DIR / "fig01_overall_tradeoff.svg", dpi=240)
     plt.close(fig)
 
 
@@ -212,7 +211,7 @@ def plot_manual_quality(data: dict[str, dict[str, dict]]) -> None:
         after_vals = [float(data[scene]["with"]["manual"][field]) for field, _ in metrics]
         ax.bar(x - width / 2, before_vals, width=width, color=SECONDARY, label="Without Optimization")
         ax.bar(x + width / 2, after_vals, width=width, color=PRIMARY, label="With Optimization")
-        ax.set_title(scene, fontproperties=EN_FONT, fontsize=14, color=TEXT)
+        ax.set_title(scene, fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=14, color=TEXT)
         ax.set_xticks(x)
         ax.set_xticklabels([label for _, label in metrics], rotation=10)
         ax.set_ylim(0, 2.12)
@@ -227,9 +226,10 @@ def plot_manual_quality(data: dict[str, dict[str, dict]]) -> None:
     legend = axes[0].legend(frameon=False, loc="upper left", bbox_to_anchor=(0.0, 1.18))
     for text in legend.get_texts():
         text.set_fontproperties(EN_FONT)
-    fig.suptitle("Impact of Query Optimization on Manual Quality Scores", fontproperties=EN_FONT, fontsize=17, color=TEXT, y=0.90)
-    fig.tight_layout(rect=[0, 0, 1, 0.86])
+    fig.suptitle("Impact of Query Optimization on Manual Quality Scores", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=17, color=TEXT, y=0.97)
+    fig.tight_layout(rect=[0, 0, 1, 0.94])
     fig.savefig(OUTPUT_DIR / "fig02_manual_quality.png", dpi=240)
+    fig.savefig(OUTPUT_DIR / "fig02_manual_quality.svg", dpi=240)
     plt.close(fig)
 
 
@@ -274,9 +274,10 @@ def plot_latency_breakdown(data: dict[str, dict[str, dict]]) -> None:
     legend = ax.legend(frameon=False, loc="upper left", bbox_to_anchor=(0.0, 1.10), ncol=4)
     for text in legend.get_texts():
         text.set_fontproperties(EN_FONT)
-    fig.suptitle("Latency Breakdown and First Token Latency Change", fontproperties=EN_FONT, fontsize=17, color=TEXT, y=0.99)
-    fig.tight_layout(rect=[0, 0, 1, 0.90])
+    fig.suptitle("Latency Breakdown and First Token Latency Change", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=17, color=TEXT, y=0.97)
+    fig.tight_layout(rect=[0, 0, 1, 0.94])
     fig.savefig(OUTPUT_DIR / "fig03_latency_breakdown.png", dpi=240)
+    fig.savefig(OUTPUT_DIR / "fig03_latency_breakdown.svg", dpi=240)
     plt.close(fig)
 
 
@@ -294,12 +295,12 @@ def draw_confusion_matrix(ax, matrix: np.ndarray, title: str) -> None:
     ax.set_xticklabels(["Answered", "Refused"])
     ax.set_yticklabels(["Should Answer", "Should Refuse"])
     set_axis_fonts(ax)
-    ax.set_title(title, fontproperties=EN_FONT, fontsize=13, color=TEXT, pad=10)
+    ax.set_title(title, fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=13, color=TEXT, pad=10)
 
 
 def plot_refusal_matrices(data: dict[str, dict[str, dict]]) -> None:
     fig, axes = plt.subplots(2, 2, figsize=(10.5, 8.6))
-    fig.suptitle("Refusal Behavior Before and After Query Optimization", fontproperties=EN_FONT, fontsize=17, color=TEXT, y=0.98)
+    fig.suptitle("Refusal Behavior Before and After Query Optimization", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=17, color=TEXT, y=0.98)
     order = [
         ("Main Test Set", "without"),
         ("Main Test Set", "with"),
@@ -336,6 +337,7 @@ def plot_refusal_matrices(data: dict[str, dict[str, dict]]) -> None:
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     fig.savefig(OUTPUT_DIR / "fig04_refusal_matrices.png", dpi=240)
+    fig.savefig(OUTPUT_DIR / "fig04_refusal_matrices.svg", dpi=240)
     plt.close(fig)
 
 
@@ -359,7 +361,7 @@ def plot_first_token_boxplot(data: dict[str, dict[str, dict]]) -> None:
 
         ax.axhline(y=8, color=ACCENT_RED, linestyle="--", linewidth=1.2, alpha=0.8)
         ax.text(2.42, 8.18, "8s", fontsize=9, fontproperties=EN_FONT, color=ACCENT_RED, ha="center")
-        ax.set_title(scene, fontproperties=EN_FONT, fontsize=14, color=TEXT)
+        ax.set_title(scene, fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=14, color=TEXT)
         ax.set_ylabel("First Token Latency (s)", fontproperties=EN_FONT, color=TEXT)
         apply_axis_style(ax, "y")
         set_axis_fonts(ax)
@@ -368,9 +370,10 @@ def plot_first_token_boxplot(data: dict[str, dict[str, dict]]) -> None:
             median = float(np.median(values))
             ax.text(idx, median - 0.5, f"Median {median:.2f}s", va="top", ha="center", fontsize=9, fontproperties=EN_FONT, color=TEXT)
 
-    fig.suptitle("First Token Latency Distribution Comparison", fontproperties=EN_FONT, fontsize=17, color=TEXT, y=0.98)
+    fig.suptitle("First Token Latency Distribution Comparison", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=17, color=TEXT, y=0.98)
     fig.tight_layout(rect=[0, 0, 1, 0.94])
     fig.savefig(OUTPUT_DIR / "fig09_first_token_boxplot.png", dpi=240)
+    fig.savefig(OUTPUT_DIR / "fig09_first_token_boxplot.svg", dpi=240)
     plt.close(fig)
 
 
@@ -401,7 +404,7 @@ def plot_hit_by_question_type(data: dict[str, dict[str, dict]]) -> None:
         ax.set_xticklabels(question_types_en, rotation=18)
         ax.set_ylim(0, 115)
         ax.set_ylabel("Target Hit Rate (%)", fontproperties=EN_FONT, color=TEXT)
-        ax.set_title(scene, fontproperties=EN_FONT, fontsize=14, color=TEXT)
+        ax.set_title(scene, fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=14, color=TEXT)
         apply_axis_style(ax, "y")
         set_axis_fonts(ax)
 
@@ -411,12 +414,13 @@ def plot_hit_by_question_type(data: dict[str, dict[str, dict]]) -> None:
                 color = ACCENT_GREEN if delta > 0 else ACCENT_RED
                 ax.text(idx, max(without_hit[idx], with_hit[idx]) + 3.0, f"{delta:+.0f}pp", ha="center", va="bottom", color=color, fontproperties=EN_FONT, fontsize=9)
 
-    legend = axes[0].legend(frameon=False, loc="upper right")
+    legend = axes[0].legend(frameon=False, loc="upper left")
     for text in legend.get_texts():
         text.set_fontproperties(EN_FONT)
-    fig.suptitle("Query Optimization Impact on Hit Rate by Question Type", fontproperties=EN_FONT, fontsize=17, color=TEXT, y=0.98)
+    fig.suptitle("Query Optimization Impact on Hit Rate by Question Type", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=17, color=TEXT, y=0.98)
     fig.tight_layout(rect=[0, 0, 1, 0.94])
     fig.savefig(OUTPUT_DIR / "fig10_hit_by_question_type.png", dpi=240)
+    fig.savefig(OUTPUT_DIR / "fig10_hit_by_question_type.svg", dpi=240)
     plt.close(fig)
 
 
@@ -457,13 +461,14 @@ def plot_question_type_delta(data: dict[str, dict[str, dict]]) -> None:
     ax.set_yticks(np.arange(len(question_types)))
     ax.set_yticklabels([CATEGORY_EN.get(qt, qt) for qt in question_types])
     set_axis_fonts(ax)
-    ax.set_title("Manual Score Gain Distribution by Question Type (Main Test Set)", fontproperties=EN_FONT, fontsize=17, color=TEXT, pad=12)
+    ax.set_title("Manual Score Gain Distribution by Question Type (Main Test Set)", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=17, color=TEXT, pad=12)
     cbar = fig.colorbar(im, ax=ax, fraction=0.045, pad=0.04)
     cbar.ax.tick_params(labelsize=9, colors=TEXT)
     for label in cbar.ax.get_yticklabels():
         label.set_fontproperties(EN_FONT)
     fig.tight_layout()
     fig.savefig(OUTPUT_DIR / "fig05_question_type_delta_main.png", dpi=240)
+    fig.savefig(OUTPUT_DIR / "fig05_question_type_delta_main.svg", dpi=240)
     plt.close(fig)
 
 

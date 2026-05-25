@@ -26,21 +26,19 @@ def load_manual_summary(path: Path) -> dict:
 
 
 def _load_font() -> FontProperties:
-    font_path = PROJECT_ROOT / "assets" / "fonts" / "SourceHanSansSC-Regular.otf"
-    if font_path.exists():
-        return FontProperties(fname=str(font_path))
-    return FontProperties(family="DejaVu Sans")
+    return FontProperties(family="Times New Roman")
 
 
 EN_FONT = _load_font()
+EN_FONT_BOLD = FontProperties(family="Times New Roman", weight="bold")
 rcParams["axes.unicode_minus"] = False
 rcParams["figure.facecolor"] = "white"
 rcParams["axes.facecolor"] = "white"
 
-PRIMARY = "#1f3a5f"
-SECONDARY = "#4e79a7"
-ACCENT = "#f28e2b"
-ACCENT_RED = "#e15759"
+PRIMARY = "#2c4a6e"
+SECONDARY = "#5b7ea1"
+ACCENT = "#b08d57"
+ACCENT_RED = "#9b4d4d"
 GRID = "#d8dee9"
 TEXT = "#1f2937"
 
@@ -113,9 +111,10 @@ def plot_section_distribution(summary: dict, output_dir: Path) -> None:
     legend = ax.legend(wedges, labels, loc="center left", bbox_to_anchor=(1.0, 0.5), frameon=False)
     for text in legend.get_texts():
         text.set_fontproperties(EN_FONT)
-    ax.set_title("Test Question Set Composition", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_title("Test Question Set Composition", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT)
     fig.tight_layout()
     fig.savefig(output_dir / "fig01_section_distribution.png", dpi=220)
+    fig.savefig(output_dir / "fig01_section_distribution.svg", dpi=220)
     plt.close(fig)
 
 
@@ -127,13 +126,14 @@ def plot_protocol_distribution(summary: dict, output_dir: Path) -> None:
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.barh(labels, values, color=SECONDARY)
-    ax.set_title("Distribution by Protocol Category", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_title("Distribution by Protocol Category", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT)
     ax.set_xlabel("Number of Questions", fontproperties=EN_FONT, color=TEXT)
     apply_axis_style(ax)
     set_axis_fonts(ax)
     ax.invert_yaxis()
     fig.tight_layout()
     fig.savefig(output_dir / "fig02_protocol_distribution.png", dpi=220)
+    fig.savefig(output_dir / "fig02_protocol_distribution.svg", dpi=220)
     plt.close(fig)
 
 
@@ -145,13 +145,14 @@ def plot_question_type_distribution(summary: dict, output_dir: Path) -> None:
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.barh(labels, values, color=PRIMARY)
-    ax.set_title("Distribution by Question Type", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_title("Distribution by Question Type", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT)
     ax.set_xlabel("Number of Questions", fontproperties=EN_FONT, color=TEXT)
     apply_axis_style(ax)
     set_axis_fonts(ax)
     ax.invert_yaxis()
     fig.tight_layout()
     fig.savefig(output_dir / "fig04_question_type_distribution.png", dpi=220)
+    fig.savefig(output_dir / "fig04_question_type_distribution.svg", dpi=220)
     plt.close(fig)
 
 
@@ -232,7 +233,7 @@ def plot_timing_composition(summary: dict, output_dir: Path) -> None:
         arrowprops={"arrowstyle": "->", "color": TEXT, "lw": 1.2},
     )
 
-    ax.set_title("Average Stage Timeline of Q&A Flow", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_title("Average Stage Timeline of Q&A Flow", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT)
     ax.set_ylabel("Seconds", fontproperties=EN_FONT, color=TEXT)
     ax.set_xlim(0.04, 1.02)
     ax.set_ylim(0, total * 1.18 if total > 0 else 1)
@@ -246,6 +247,7 @@ def plot_timing_composition(summary: dict, output_dir: Path) -> None:
     set_axis_fonts(ax)
     fig.tight_layout()
     fig.savefig(output_dir / "fig03_timing_timeline.png", dpi=220)
+    fig.savefig(output_dir / "fig03_timing_timeline.svg", dpi=220)
     plt.close(fig)
 
 
@@ -262,13 +264,14 @@ def plot_protocol_hit_rate(summary: dict, output_dir: Path) -> None:
     ax.set_yticks(y_positions)
     ax.set_yticklabels(labels)
     ax.set_xlim(0, 1.05)
-    ax.set_title("Target Document Hit Rate by Protocol", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_title("Target Document Hit Rate by Protocol", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT)
     ax.set_xlabel("Hit Rate", fontproperties=EN_FONT, color=TEXT)
     apply_axis_style(ax)
     set_axis_fonts(ax)
     ax.invert_yaxis()
     fig.tight_layout()
     fig.savefig(output_dir / "fig06_protocol_hit_rate.png", dpi=220)
+    fig.savefig(output_dir / "fig06_protocol_hit_rate.svg", dpi=220)
     plt.close(fig)
 
 
@@ -280,13 +283,14 @@ def plot_protocol_avg_total_time(summary: dict, output_dir: Path) -> None:
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.barh(labels, values, color=PRIMARY)
-    ax.set_title("Average Total Time by Protocol", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_title("Average Total Time by Protocol", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT)
     ax.set_xlabel("Seconds", fontproperties=EN_FONT, color=TEXT)
     apply_axis_style(ax)
     set_axis_fonts(ax)
     ax.invert_yaxis()
     fig.tight_layout()
     fig.savefig(output_dir / "fig07_protocol_avg_total_time.png", dpi=220)
+    fig.savefig(output_dir / "fig07_protocol_avg_total_time.svg", dpi=220)
     plt.close(fig)
 
 
@@ -307,7 +311,7 @@ def plot_refusal_summary(results: list[dict], output_dir: Path) -> None:
     ax.set_yticks([0, 1])
     ax.set_xticklabels(col_labels, fontproperties=EN_FONT)
     ax.set_yticklabels(row_labels, fontproperties=EN_FONT)
-    ax.set_title("Refusal Confusion Matrix", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_title("Refusal Confusion Matrix", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT)
 
     max_value = max(tp, fn, fp, tn, 1)
     for i in range(2):
@@ -329,6 +333,7 @@ def plot_refusal_summary(results: list[dict], output_dir: Path) -> None:
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     fig.subplots_adjust(left=0.20, bottom=0.12, right=0.88, top=0.90)
     fig.savefig(output_dir / "fig08_refusal_confusion_matrix.png", dpi=220)
+    fig.savefig(output_dir / "fig08_refusal_confusion_matrix.svg", dpi=220)
     plt.close(fig)
 
 
@@ -344,7 +349,7 @@ def plot_manual_score_overview(manual_summary: dict, output_dir: Path) -> None:
 
     fig, ax = plt.subplots(figsize=(8.5, 5.6))
     bars = ax.bar(labels, values, color=colors)
-    ax.set_title("Average Manual Scores by Dimension", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_title("Average Manual Scores by Dimension", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT)
     ax.set_ylabel("Average Score", fontproperties=EN_FONT, color=TEXT)
     ax.set_ylim(0, 2.1)
     apply_axis_style(ax)
@@ -353,6 +358,7 @@ def plot_manual_score_overview(manual_summary: dict, output_dir: Path) -> None:
         ax.text(bar.get_x() + bar.get_width() / 2, value + 0.03, f"{value:.2f}", ha="center", va="bottom", color=TEXT, fontproperties=EN_FONT)
     fig.tight_layout()
     fig.savefig(output_dir / "fig09_manual_score_overview.png", dpi=220)
+    fig.savefig(output_dir / "fig09_manual_score_overview.svg", dpi=220)
     plt.close(fig)
 
 
@@ -371,7 +377,7 @@ def plot_manual_score_by_protocol(manual_summary: dict, output_dir: Path) -> Non
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.set_xlim(0, 2.1)
-    ax.set_title("Manual Scores by Protocol", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_title("Manual Scores by Protocol", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT)
     ax.set_xlabel("Average Score", fontproperties=EN_FONT, color=TEXT)
     apply_axis_style(ax)
     set_axis_fonts(ax)
@@ -381,6 +387,7 @@ def plot_manual_score_by_protocol(manual_summary: dict, output_dir: Path) -> Non
         text.set_fontproperties(EN_FONT)
     fig.tight_layout()
     fig.savefig(output_dir / "fig10_manual_score_by_protocol.png", dpi=220)
+    fig.savefig(output_dir / "fig10_manual_score_by_protocol.svg", dpi=220)
     plt.close(fig)
 
 
@@ -401,7 +408,7 @@ def plot_refusal_summary(results: list[dict], output_dir: Path) -> None:
     ax.set_yticks([0, 1])
     ax.set_xticklabels(col_labels, fontproperties=EN_FONT)
     ax.set_yticklabels(row_labels, fontproperties=EN_FONT)
-    ax.set_title("Refusal Confusion Matrix", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_title("Refusal Confusion Matrix", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT)
 
     max_value = max(tp, fn, fp, tn, 1)
     for i in range(2):
@@ -423,6 +430,7 @@ def plot_refusal_summary(results: list[dict], output_dir: Path) -> None:
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     fig.subplots_adjust(left=0.20, bottom=0.12, right=0.88, top=0.90)
     fig.savefig(output_dir / "fig08_refusal_confusion_matrix.png", dpi=220)
+    fig.savefig(output_dir / "fig08_refusal_confusion_matrix.svg", dpi=220)
     plt.close(fig)
 
 
@@ -441,16 +449,17 @@ def plot_manual_score_by_question_type(manual_summary: dict, output_dir: Path) -
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.set_xlim(0, 2.1)
-    ax.set_title("Manual Scores by Question Type", fontproperties=EN_FONT, fontsize=16, color=TEXT)
+    ax.set_title("Manual Scores by Question Type", fontweight='bold', fontproperties=EN_FONT_BOLD, fontsize=16, color=TEXT)
     ax.set_xlabel("Average Score", fontproperties=EN_FONT, color=TEXT)
     apply_axis_style(ax)
     set_axis_fonts(ax)
     ax.invert_yaxis()
-    legend = ax.legend(frameon=False, loc="lower right")
+    legend = ax.legend(frameon=False, loc="lower right", bbox_to_anchor=(1.0, 0.12))
     for text in legend.get_texts():
         text.set_fontproperties(EN_FONT)
     fig.tight_layout()
     fig.savefig(output_dir / "fig11_manual_score_by_question_type.png", dpi=220)
+    fig.savefig(output_dir / "fig11_manual_score_by_question_type.svg", dpi=220)
     plt.close(fig)
 
 

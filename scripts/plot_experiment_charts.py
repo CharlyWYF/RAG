@@ -7,23 +7,35 @@ import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.font_manager import FontProperties
 
-FONT_PATH = "assets/fonts/SourceHanSansSC-Regular.otF"
-font = FontProperties(fname=FONT_PATH)
-font_bold = FontProperties(fname=FONT_PATH, weight="bold")
+font = FontProperties(family="Times New Roman")
+font_bold = FontProperties(family="Times New Roman", weight="bold")
 matplotlib.rcParams["axes.unicode_minus"] = False
 
 RUNS = [
-    ("20260430_172612_without_rewrite", "主测试集-无改写"),
-    ("20260430_230707_with_rewrite", "主测试集-启用改写"),
-    ("20260501_000136_conversational_without_rewrite", "口语化子集-无改写"),
-    ("20260501_002532_conversational_with_rewrite", "口语化子集-启用改写"),
+    ("20260430_172612_without_rewrite", "Main Set - No Rewrite"),
+    ("20260430_230707_with_rewrite", "Main Set - With Rewrite"),
+    ("20260501_000136_conversational_without_rewrite", "Conv. Set - No Rewrite"),
+    ("20260501_002532_conversational_with_rewrite", "Conv. Set - With Rewrite"),
 ]
 
-SHORT = ["主集-无改写", "主集-改写", "口语化-无改写", "口语化-改写"]
+SHORT = ["Main - NR", "Main - WR", "Conv. - NR", "Conv. - WR"]
 COLORS = ["#4C72B0", "#DD8452", "#4C72B0", "#DD8452"]
 HATCHES = ["", "//", "", "//"]
 EVAL_DIR = "runs/eval"
 OUT_DIR = "runs/figures"
+
+CATEGORY_EN = {
+    "机制类": "Mechanism",
+    "定义类": "Definition",
+    "对比类": "Comparison",
+    "综合类": "Comprehensive",
+    "证据不足类": "Insufficient Evidence",
+    "字段类": "Field",
+    "安全类": "Security",
+    "私有协议类": "Private Protocol",
+    "规则类": "Rule",
+    "综合": "Cross-Protocol",
+}
 
 
 def load_per_question(run_dir):
@@ -75,23 +87,24 @@ def chart_rates(all_summaries):
     x = np.arange(4)
     bars1 = ax1.bar(x, hit_rates, color=COLORS, edgecolor="black", linewidth=0.5)
     ax1.set_ylim(0, 110)
-    ax1.set_ylabel("命中率 (%)", fontproperties=font, fontsize=10)
-    ax1.set_title("目标文档命中率", fontproperties=font_bold, fontsize=12)
+    ax1.set_ylabel("Target Hit Rate (%)", fontproperties=font, fontsize=10)
+    ax1.set_title("Target Document Hit Rate", fontweight='bold', fontproperties=font_bold, fontsize=12)
     set_xtick_labels(ax1, SHORT)
     annotate_bars(ax1, bars1, "{:.1f}%")
     ax1.axhline(y=100, color="grey", linestyle="--", linewidth=0.5, alpha=0.5)
 
     bars2 = ax2.bar(x, refusal_rates, color=COLORS, edgecolor="black", linewidth=0.5)
     ax2.set_ylim(0, 110)
-    ax2.set_ylabel("拒答成功率 (%)", fontproperties=font, fontsize=10)
-    ax2.set_title("拒答成功率", fontproperties=font_bold, fontsize=12)
+    ax2.set_ylabel("Refusal Success Rate (%)", fontproperties=font, fontsize=10)
+    ax2.set_title("Refusal Success Rate", fontweight='bold', fontproperties=font_bold, fontsize=12)
     set_xtick_labels(ax2, SHORT)
     annotate_bars(ax2, bars2, "{:.1f}%")
 
-    fig.suptitle("命中率与拒答成功率对比", fontproperties=font_bold, fontsize=14, y=1.02)
+    fig.suptitle("Hit Rate and Refusal Success Rate Comparison", fontweight='bold', fontproperties=font_bold, fontsize=14, y=1.02)
     fig.tight_layout()
     out = os.path.join(OUT_DIR, "chart_rates.png")
     fig.savefig(out, dpi=150, bbox_inches="tight")
+    fig.savefig(out.replace(".png", ".svg"), dpi=150, bbox_inches="tight")
     plt.close()
     print(f"Saved {out}")
 
@@ -100,7 +113,7 @@ def chart_rates(all_summaries):
 def chart_latency(all_summaries):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5), sharey=True)
 
-    groups = [(0, 1, "主测试集", ax1), (2, 3, "口语化子集", ax2)]
+    groups = [(0, 1, "Main Test Set", ax1), (2, 3, "Conversational Subset", ax2)]
 
     for i, j, gname, ax in groups:
         labels = [SHORT[i], SHORT[j]]
@@ -114,23 +127,24 @@ def chart_latency(all_summaries):
         ]
         x = np.arange(2)
         w = 0.45
-        ax.bar(x, overhead, w, label="其他开销", color="#C7C7C7", edgecolor="black", linewidth=0.5)
-        ax.bar(x, rewrite, w, bottom=overhead, label="改写", color="#55A868", edgecolor="black", linewidth=0.5)
+        ax.bar(x, overhead, w, label="Overhead", color="#C7C7C7", edgecolor="black", linewidth=0.5)
+        ax.bar(x, rewrite, w, bottom=overhead, label="Rewrite", color="#55A868", edgecolor="black", linewidth=0.5)
         ax.bar(x, retrieve, w, bottom=[o + r for o, r in zip(overhead, rewrite)],
-               label="检索", color="#4C72B0", edgecolor="black", linewidth=0.5)
+               label="Retrieve", color="#4C72B0", edgecolor="black", linewidth=0.5)
         ax.bar(x, generate, w,
                bottom=[o + r + ret for o, r, ret in zip(overhead, rewrite, retrieve)],
-               label="生成", color="#DD8452", edgecolor="black", linewidth=0.5)
+               label="Generate", color="#DD8452", edgecolor="black", linewidth=0.5)
 
         set_xtick_labels(ax, labels)
-        ax.set_title(gname, fontproperties=font_bold, fontsize=12)
-        ax.set_ylabel("秒 (s)", fontproperties=font, fontsize=10)
+        ax.set_title(gname, fontweight='bold', fontproperties=font_bold, fontsize=12)
+        ax.set_ylabel("Seconds (s)", fontproperties=font, fontsize=10)
         ax.legend(prop=font, fontsize=8, loc="upper left")
 
-    fig.suptitle("各阶段耗时分解", fontproperties=font_bold, fontsize=14, y=1.02)
+    fig.suptitle("Stage-wise Latency Breakdown", fontweight='bold', fontproperties=font_bold, fontsize=14, y=1.02)
     fig.tight_layout()
     out = os.path.join(OUT_DIR, "chart_latency.png")
     fig.savefig(out, dpi=150, bbox_inches="tight")
+    fig.savefig(out.replace(".png", ".svg"), dpi=150, bbox_inches="tight")
     plt.close()
     print(f"Saved {out}")
 
@@ -138,11 +152,11 @@ def chart_latency(all_summaries):
 # ========== Chart 3: 质量评分对比 ==========
 def chart_quality(all_summaries):
     metrics = ["avg_correctness", "avg_completeness", "avg_faithfulness", "avg_retrieval_relevance"]
-    metric_labels = ["正确性", "完整性", "忠实度", "检索相关性"]
+    metric_labels = ["Correctness", "Completeness", "Faithfulness", "Retrieval Relevance"]
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.5), sharey=True)
 
-    for ax_idx, (i, j, gname) in enumerate([(0, 1, "主测试集"), (2, 3, "口语化子集")]):
+    for ax_idx, (i, j, gname) in enumerate([(0, 1, "Main Test Set"), (2, 3, "Conversational Subset")]):
         ax = axes[ax_idx]
         x = np.arange(len(metrics))
         w = 0.32
@@ -157,8 +171,8 @@ def chart_quality(all_summaries):
         ax.set_ylim(0, 2.5)
         ax.set_xticks(x)
         ax.set_xticklabels(metric_labels, fontproperties=font, fontsize=9)
-        ax.set_title(gname, fontproperties=font_bold, fontsize=12)
-        ax.set_ylabel("平均分 (0-2)", fontproperties=font, fontsize=10)
+        ax.set_title(gname, fontweight='bold', fontproperties=font_bold, fontsize=12)
+        ax.set_ylabel("Average Score (0-2)", fontproperties=font, fontsize=10)
         ax.legend(prop=font, fontsize=8)
 
         # annotate diffs
@@ -170,10 +184,11 @@ def chart_quality(all_summaries):
                     f"{sign}{diff:.2f}", ha="center", fontsize=8,
                     fontproperties=font, color=color)
 
-    fig.suptitle("质量评分对比", fontproperties=font_bold, fontsize=14, y=1.02)
+    fig.suptitle("Quality Score Comparison", fontweight='bold', fontproperties=font_bold, fontsize=14, y=1.02)
     fig.tight_layout()
     out = os.path.join(OUT_DIR, "chart_quality.png")
     fig.savefig(out, dpi=150, bbox_inches="tight")
+    fig.savefig(out.replace(".png", ".svg"), dpi=150, bbox_inches="tight")
     plt.close()
     print(f"Saved {out}")
 
@@ -194,11 +209,12 @@ def chart_sources(all_summaries):
 
     set_xtick_labels(ax, SHORT)
     ax.set_ylim(0, 4.5)
-    ax.set_ylabel("平均唯一来源数", fontproperties=font, fontsize=10)
-    ax.set_title("检索来源多样性对比", fontproperties=font_bold, fontsize=14)
+    ax.set_ylabel("Avg Unique Source Count", fontproperties=font, fontsize=10)
+    ax.set_title("Retrieval Source Diversity Comparison", fontweight='bold', fontproperties=font_bold, fontsize=14)
     fig.tight_layout()
     out = os.path.join(OUT_DIR, "chart_sources.png")
     fig.savefig(out, dpi=150, bbox_inches="tight")
+    fig.savefig(out.replace(".png", ".svg"), dpi=150, bbox_inches="tight")
     plt.close()
     print(f"Saved {out}")
 
@@ -208,7 +224,7 @@ def chart_latency_boxplot(all_rows):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5), sharey=True)
 
     for ax, (i, j, gname) in zip([ax1, ax2],
-                                   [(0, 1, "主测试集"), (2, 3, "口语化子集")]):
+                                   [(0, 1, "Main Test Set"), (2, 3, "Conversational Subset")]):
         data_i = [float(r["total_seconds"]) for r in all_rows[i]]
         data_j = [float(r["total_seconds"]) for r in all_rows[j]]
 
@@ -219,8 +235,8 @@ def chart_latency_boxplot(all_rows):
             patch.set_facecolor(c)
             patch.set_alpha(0.7)
 
-        ax.set_title(gname, fontproperties=font_bold, fontsize=12)
-        ax.set_ylabel("总耗时 (s)", fontproperties=font, fontsize=10)
+        ax.set_title(gname, fontweight='bold', fontproperties=font_bold, fontsize=12)
+        ax.set_ylabel("Total Time (s)", fontproperties=font, fontsize=10)
         for label in ax.get_xticklabels():
             label.set_fontproperties(font)
             label.set_fontsize(9)
@@ -228,13 +244,14 @@ def chart_latency_boxplot(all_rows):
         # annotate median
         for k, d in enumerate([data_i, data_j]):
             med = np.median(d)
-            ax.text(k + 1, med, f"  中位数 {med:.1f}s", va="center",
+            ax.text(k + 1, med, f"  Median {med:.1f}s", va="center",
                     fontsize=8, fontproperties=font)
 
-    fig.suptitle("每题总耗时分布", fontproperties=font_bold, fontsize=14, y=1.02)
+    fig.suptitle("Per-Question Total Time Distribution", fontweight='bold', fontproperties=font_bold, fontsize=14, y=1.02)
     fig.tight_layout()
     out = os.path.join(OUT_DIR, "chart_latency_boxplot.png")
     fig.savefig(out, dpi=150, bbox_inches="tight")
+    fig.savefig(out.replace(".png", ".svg"), dpi=150, bbox_inches="tight")
     plt.close()
     print(f"Saved {out}")
 
@@ -244,7 +261,7 @@ def chart_hit_by_group(all_rows):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5))
 
     # --- 按 question_type ---
-    for ax_idx, (i, j, gname) in enumerate([(0, 1, "主测试集"), (2, 3, "口语化子集")]):
+    for ax_idx, (i, j, gname) in enumerate([(0, 1, "Main Test Set"), (2, 3, "Conversational Subset")]):
         ax = [ax1, ax2][ax_idx]
         types = sorted(set(r["question_type"] for r in all_rows[i]))
         x = np.arange(len(types))
@@ -263,16 +280,17 @@ def chart_hit_by_group(all_rows):
                edgecolor="black", linewidth=0.5)
 
         ax.set_xticks(x)
-        ax.set_xticklabels(types, fontproperties=font, fontsize=8, rotation=15)
+        ax.set_xticklabels([CATEGORY_EN.get(t, t) for t in types], fontproperties=font, fontsize=8, rotation=15)
         ax.set_ylim(0, 115)
-        ax.set_ylabel("命中率 (%)", fontproperties=font, fontsize=10)
-        ax.set_title(gname, fontproperties=font_bold, fontsize=12)
+        ax.set_ylabel("Target Hit Rate (%)", fontproperties=font, fontsize=10)
+        ax.set_title(gname, fontweight='bold', fontproperties=font_bold, fontsize=12)
         ax.legend(prop=font, fontsize=8)
 
-    fig.suptitle("按题型命中率对比", fontproperties=font_bold, fontsize=14, y=1.02)
+    fig.suptitle("Hit Rate by Question Type", fontweight='bold', fontproperties=font_bold, fontsize=14, y=1.02)
     fig.tight_layout()
     out = os.path.join(OUT_DIR, "chart_hit_by_type.png")
     fig.savefig(out, dpi=150, bbox_inches="tight")
+    fig.savefig(out.replace(".png", ".svg"), dpi=150, bbox_inches="tight")
     plt.close()
     print(f"Saved {out}")
 
@@ -282,7 +300,7 @@ def chart_first_token_boxplot(all_rows):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5), sharey=True)
 
     for ax, (i, j, gname) in zip([ax1, ax2],
-                                   [(0, 1, "主测试集"), (2, 3, "口语化子集")]):
+                                   [(0, 1, "Main Test Set"), (2, 3, "Conversational Subset")]):
         data_i = [float(r["first_token_seconds"]) for r in all_rows[i]]
         data_j = [float(r["first_token_seconds"]) for r in all_rows[j]]
 
@@ -297,21 +315,22 @@ def chart_first_token_boxplot(all_rows):
         ax.text(2.45, 8.15, "8s", fontsize=9, fontproperties=font_bold,
                 color="#d62728", ha="center")
 
-        ax.set_title(gname, fontproperties=font_bold, fontsize=12)
-        ax.set_ylabel("首字响应时间 (s)", fontproperties=font, fontsize=10)
+        ax.set_title(gname, fontweight='bold', fontproperties=font_bold, fontsize=12)
+        ax.set_ylabel("First Token Latency (s)", fontproperties=font, fontsize=10)
         for label in ax.get_xticklabels():
             label.set_fontproperties(font)
             label.set_fontsize(9)
 
         for k, d in enumerate([data_i, data_j]):
             med = np.median(d)
-            ax.text(k + 1, med, f"  中位数 {med:.1f}s", va="center",
+            ax.text(k + 1, med, f"  Median {med:.1f}s", va="center",
                     fontsize=8, fontproperties=font)
 
-    fig.suptitle("首字响应时间分布", fontproperties=font_bold, fontsize=14, y=1.02)
+    fig.suptitle("First Token Latency Distribution", fontweight='bold', fontproperties=font_bold, fontsize=14, y=1.02)
     fig.tight_layout()
     out = os.path.join(OUT_DIR, "chart_first_token_boxplot.png")
     fig.savefig(out, dpi=150, bbox_inches="tight")
+    fig.savefig(out.replace(".png", ".svg"), dpi=150, bbox_inches="tight")
     plt.close()
     print(f"Saved {out}")
 
@@ -321,7 +340,7 @@ def chart_latency_scatter(all_rows):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5))
 
     for ax, (i, j, gname) in zip([ax1, ax2],
-                                   [(0, 1, "主测试集"), (2, 3, "口语化子集")]):
+                                   [(0, 1, "Main Test Set"), (2, 3, "Conversational Subset")]):
         for idx, c, m, lab in [(i, "#4C72B0", "o", SHORT[i]),
                                 (j, "#DD8452", "s", SHORT[j])]:
             ft = [float(r["first_token_seconds"]) for r in all_rows[idx]]
@@ -329,15 +348,16 @@ def chart_latency_scatter(all_rows):
             ax.scatter(ft, gen, c=c, marker=m, label=lab, alpha=0.6, s=30,
                        edgecolors="black", linewidth=0.3)
 
-        ax.set_xlabel("首 token 延迟 (s)", fontproperties=font, fontsize=10)
-        ax.set_ylabel("答案生成耗时 (s)", fontproperties=font, fontsize=10)
-        ax.set_title(gname, fontproperties=font_bold, fontsize=12)
+        ax.set_xlabel("First Token Latency (s)", fontproperties=font, fontsize=10)
+        ax.set_ylabel("Generation Time (s)", fontproperties=font, fontsize=10)
+        ax.set_title(gname, fontweight='bold', fontproperties=font_bold, fontsize=12)
         ax.legend(prop=font, fontsize=8)
 
-    fig.suptitle("首 token 延迟 vs 答案生成耗时", fontproperties=font_bold, fontsize=14, y=1.02)
+    fig.suptitle("First Token Latency vs Generation Time", fontweight='bold', fontproperties=font_bold, fontsize=14, y=1.02)
     fig.tight_layout()
     out = os.path.join(OUT_DIR, "chart_latency_scatter.png")
     fig.savefig(out, dpi=150, bbox_inches="tight")
+    fig.savefig(out.replace(".png", ".svg"), dpi=150, bbox_inches="tight")
     plt.close()
     print(f"Saved {out}")
 
