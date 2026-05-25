@@ -5,6 +5,7 @@ from time import perf_counter
 from typing import Any
 
 from src.config import load_settings
+from src.i18n import t
 from src.qa import PROMPT_TEMPLATE, _join_context, build_llm
 from src.retriever import get_retriever
 
@@ -51,7 +52,7 @@ def execute_qa_flow(
     timings: list[dict[str, Any]] = []
     t0 = perf_counter()
 
-    report("开始加载配置...")
+    report(t("qa.stage_load_config") + "...")
     t1_start = perf_counter()
     settings = load_settings()
     t1_end = perf_counter()
@@ -59,7 +60,7 @@ def execute_qa_flow(
 
     rewritten_queries: list[str] = []
     if enable_query_rewrite:
-        report("正在查询改写...")
+        report(t("qa.log_rewrite"))
         t_rewrite_start = perf_counter()
         rewrite_llm = build_llm(settings, model_override=settings.query_rewrite_model)
         rewritten_raw = rewrite_llm.invoke(QUERY_REWRITE_PROMPT.format(question=q)).content.strip()
@@ -71,13 +72,13 @@ def execute_qa_flow(
         t_rewrite_end = perf_counter()
         timings.append({"stage": "rewrite_query", "seconds": t_rewrite_end - t_rewrite_start})
 
-    report("正在初始化检索器...")
+    report(t("qa.stage_init_retriever") + "...")
     t2_start = perf_counter()
     retriever = get_retriever()
     t2_end = perf_counter()
     timings.append({"stage": "init_retriever", "seconds": t2_end - t2_start})
 
-    report("正在执行向量检索...")
+    report(t("qa.stage_retrieve") + "...")
     t3_start = perf_counter()
     retrieval_queries = [q, *rewritten_queries]
     merged_docs: list[Any] = []
@@ -101,7 +102,7 @@ def execute_qa_flow(
         total_seconds = perf_counter() - t0
         timings.append({"stage": "total", "seconds": total_seconds})
         return {
-            "answer": "资料不足以确定，请先补充相关协议文档。",
+            "answer": t("qa.no_context_answer"),
             "contexts": [],
             "sources": [],
             "rewritten_queries": rewritten_queries,
@@ -116,7 +117,7 @@ def execute_qa_flow(
             ],
         }
 
-    report("正在初始化大模型客户端...")
+    report(t("qa.stage_init_llm") + "...")
     t4_start = perf_counter()
     llm = build_llm(settings)
     t4_end = perf_counter()
@@ -126,7 +127,7 @@ def execute_qa_flow(
         stream_handler.on_setup(q)
 
     prompt = (prompt_template or PROMPT_TEMPLATE).format(question=q, context=context)
-    report("正在生成最终回答...")
+    report(t("qa.stage_generate") + "...")
     t5_start = perf_counter()
     first_token_seconds: float | None = None
     chunks: list[str] = []

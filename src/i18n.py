@@ -58,6 +58,8 @@ _ZH: dict[str, str] = {
     "qa.gen_done": "生成完成。",
     "qa.exec_done": "执行完成。",
     "qa.flow_done": "问答流程执行完成。",
+    "qa.log_rewrite": "正在查询改写...",
+    "qa.no_context_answer": "资料不足以确定，请先补充相关协议文档。",
     # qa result (app_views)
     "qa.result.first_token": "首字响应时间",
     "qa.result.seconds": "{seconds:.3f} 秒",
@@ -274,6 +276,8 @@ _EN: dict[str, str] = {
     "qa.gen_done": "Generation complete.",
     "qa.exec_done": "Execution complete.",
     "qa.flow_done": "Q&A flow completed.",
+    "qa.log_rewrite": "Rewriting query...",
+    "qa.no_context_answer": "Insufficient data to determine. Please add relevant protocol documents first.",
     # qa result (app_views)
     "qa.result.first_token": "First Token Latency",
     "qa.result.seconds": "{seconds:.3f} s",

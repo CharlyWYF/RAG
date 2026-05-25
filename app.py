@@ -393,6 +393,7 @@ def _render_kb_tab(progress_placeholder, log_placeholder, perf_placeholder) -> N
     chunk_strategy = st.radio(
         t("kb.chunk_strategy"),
         options=["fixed", "section", "hybrid"],
+        index=2,
         horizontal=True,
         help=t("kb.chunk_strategy_help"),
     )
