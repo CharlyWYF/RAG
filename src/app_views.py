@@ -1,3 +1,5 @@
+"""Streamlit 页面渲染组件。"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,8 +13,10 @@ from src.presentation import build_preview_url, format_build_timing_rows, format
 
 
 def render_qa_result(stored_question: str, stored_result: dict[str, Any], project_root: Path, perf_placeholder) -> None:
+    """渲染问答结果：性能指标、回答正文、改写查询、上下文及来源文件。"""
     timings = stored_result.get("timings", [])
     timing_rows = format_timing_rows(timings)
+    # 从计时数据中提取首 token 耗时
     first_token_seconds = next(
         (
             float(item.get("seconds", 0.0))
@@ -41,6 +45,7 @@ def render_qa_result(stored_question: str, stored_result: dict[str, Any], projec
 
     contexts = stored_result.get("contexts", [])
     sources = stored_result.get("sources", [])
+    # 去重并保持原始顺序
     unique_sources = list(dict.fromkeys(str(src) for src in sources))
     col1, col2 = st.columns(2)
     col1.metric(t("qa.result.context_count"), len(contexts))
@@ -83,6 +88,7 @@ def render_qa_result(stored_question: str, stored_result: dict[str, Any], projec
 
 
 def render_build_stats(stats: dict[str, Any], chunk_strategy: str, perf_placeholder) -> None:
+    """渲染构建统计：耗时指标、构建模式、文档及分块数量概览。"""
     with perf_placeholder.container():
         st.metric(t("build.total_time"), t("build.seconds", seconds=float(stats.get("total_seconds", 0.0))))
         st.metric(t("build.per_doc_time"), t("build.seconds", seconds=float(stats.get("seconds_per_doc", 0.0))))

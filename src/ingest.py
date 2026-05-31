@@ -1,3 +1,4 @@
+"""文档索引入口：加载源文件、分块、写入 Chroma 向量库。"""
 from __future__ import annotations
 
 import argparse
@@ -18,6 +19,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from src.config import load_settings
 
+# 匹配 Markdown 标题行（# ~ ######）
 SECTION_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 
 
@@ -40,6 +42,7 @@ def _extract_source_hash(metadata: dict | None) -> str:
 
 
 def _source_key(source: str) -> str:
+    """统一源路径格式：去空格、反斜杠转正斜杠、小写化。"""
     return source.strip().replace("\\", "/").lower()
 
 
@@ -55,6 +58,7 @@ def _hash_text(text: str) -> str:
 
 
 def _build_current_source_hashes(docs: list[Any]) -> dict[str, str]:
+    """为每个源文件计算内容哈希，用于后续变更检测。"""
     source_hash_by_key: dict[str, str] = {}
 
     for doc in docs:
@@ -71,6 +75,7 @@ def _build_current_source_hashes(docs: list[Any]) -> dict[str, str]:
 
 
 def _load_existing_state(db: Chroma) -> tuple[dict[str, str], dict[str, set[str]]]:
+    """从已有的 Chroma 库中读取每个源文件的哈希及原始路径变体。"""
     rows = db.get(include=["metadatas"])
     metadatas = rows.get("metadatas", [])
 
@@ -94,6 +99,7 @@ def _load_existing_state(db: Chroma) -> tuple[dict[str, str], dict[str, set[str]
         if not existing_hash and source_hash:
             source_hash_by_key[key] = source_hash
         elif existing_hash and source_hash and existing_hash != source_hash:
+            # 同一源文件出现不一致的哈希，标记为空以触发重新索引
             source_hash_by_key[key] = ""
 
     return source_hash_by_key, source_variants_by_key
@@ -109,6 +115,7 @@ def _select_docs_by_keys(docs: list[Any], keys: set[str]) -> list[Any]:
 
 
 def _attach_source_hash(chunks: list[Any], source_hash_by_key: dict[str, str]) -> None:
+    """将源文件哈希写入每个 chunk 的 metadata，供增量同步使用。"""
     for chunk in chunks:
         metadata = getattr(chunk, "metadata", None)
         if not isinstance(metadata, dict):
@@ -153,6 +160,7 @@ def _add_chunks_in_batches(
     batch_size: int = 64,
     progress_callback: ProgressCallback | None = None,
 ) -> None:
+    """分批将 chunks 写入向量库，避免单次请求过大。"""
     if not chunks:
         message = "No chunks to embed/write."
         print(message)
@@ -206,9 +214,11 @@ def _build_splitter(settings: Any) -> RecursiveCharacterTextSplitter:
 
 
 def _split_markdown_sections(doc: Document) -> list[Document]:
+    """按 Markdown 标题将文档拆分为多个 section。"""
     text = doc.page_content
     lines = text.splitlines()
 
+    # 提取 "# Source Metadata" 开头的元数据块，后续每个 section 都会附带
     metadata_lines: list[str] = []
     content_start = 0
     if lines and lines[0].strip() == "# Source Metadata":
@@ -264,6 +274,7 @@ def _split_docs(
     strategy: str,
     splitter: RecursiveCharacterTextSplitter,
 ) -> list[Document]:
+    """按策略分块：fixed=固定长度、section=按标题、hybrid=先标题再固定长度。"""
     if strategy == "fixed":
         chunks = splitter.split_documents(docs)
         for chunk in chunks:
@@ -295,6 +306,10 @@ def build_index(
     chunk_strategy: str = "fixed",
     progress_callback: ProgressCallback | None = None,
 ) -> dict[str, int | str | float]:
+    """主入口：加载文档、分块、嵌入并写入 Chroma 向量库。
+
+    mode: rebuild=全量重建, append=仅新增, sync=增量同步(增删改)
+    """
     start_time = perf_counter()
     if mode not in {"rebuild", "append", "sync"}:
         raise ValueError(f"Unsupported mode: {mode}")
@@ -438,6 +453,7 @@ def build_index(
             added_keys = current_keys - existing_keys
             deleted_keys = existing_keys - current_keys
             overlap_keys = current_keys & existing_keys
+            # 哈希不一致或旧库中哈希为空的视为已更新
             updated_keys = {
                 key
                 for key in overlap_keys

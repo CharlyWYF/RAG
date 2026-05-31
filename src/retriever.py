@@ -1,3 +1,5 @@
+"""从 Chroma 向量库构建检索器。"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -9,6 +11,7 @@ from src.config import load_settings
 
 
 def get_retriever():
+    """加载配置并返回可用的向量检索器。"""
     settings = load_settings()
 
     chroma_dir = Path(settings.chroma_dir)
@@ -17,6 +20,7 @@ def get_retriever():
             f"Vector DB not found at {chroma_dir}. Please run: python -m src.ingest"
         )
 
+    # 支持自定义 base_url（如代理或兼容 API）
     embedding_kwargs = {
         "model": settings.embedding_model,
         "api_key": settings.openai_api_key,

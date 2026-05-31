@@ -1,3 +1,5 @@
+"""QA 问答流程：查询改写、检索、流式生成。"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -9,6 +11,7 @@ from src.i18n import t
 from src.qa import PROMPT_TEMPLATE, _join_context, build_llm
 from src.retriever import get_retriever
 
+# 查询改写提示词——要求生成 2 条克制的子查询，保留原问题术语，不做发散
 QUERY_REWRITE_PROMPT = """你是检索查询优化助手。请根据用户问题生成 2 条更克制、更贴近原问题的检索子查询。
 
 要求：
@@ -24,6 +27,7 @@ QUERY_REWRITE_PROMPT = """你是检索查询优化助手。请根据用户问题
 
 
 class AnswerStreamHandler:
+    """流式应答回调接口：子类重写各事件以实现 UI 展示。"""
     def on_setup(self, question: str) -> None:
         pass
 
@@ -44,6 +48,7 @@ def execute_qa_flow(
     enable_query_rewrite: bool = True,
     prompt_template: str | None = None,
 ) -> dict[str, Any]:
+    """执行完整 QA 流程：改写查询 → 检索 → 去重合并 → 流式生成答案。"""
     def report(message: str) -> None:
         if progress_callback:
             progress_callback(message)
@@ -68,7 +73,7 @@ def execute_qa_flow(
             line.strip()
             for line in rewritten_raw.splitlines()
             if line.strip()
-        ))[:2]
+        ))[:2]  # dict.fromkeys 保序去重，截取最多 2 条
         t_rewrite_end = perf_counter()
         timings.append({"stage": "rewrite_query", "seconds": t_rewrite_end - t_rewrite_start})
 
@@ -82,7 +87,7 @@ def execute_qa_flow(
     t3_start = perf_counter()
     retrieval_queries = [q, *rewritten_queries]
     merged_docs: list[Any] = []
-    seen_chunks: set[tuple[str, str]] = set()
+    seen_chunks: set[tuple[str, str]] = set()  # (source, content) 用于跨查询去重
     for retrieval_query in retrieval_queries:
         query_docs = retriever.invoke(retrieval_query)
         for doc in query_docs:
@@ -98,7 +103,7 @@ def execute_qa_flow(
     timings.append({"stage": "retrieve", "seconds": t3_end - t3_start})
 
     context = _join_context(docs)
-    if not context.strip():
+    if not context.strip():  # 无上下文时直接返回兜底提示，不再调用 LLM
         total_seconds = perf_counter() - t0
         timings.append({"stage": "total", "seconds": total_seconds})
         return {
@@ -149,6 +154,7 @@ def execute_qa_flow(
 
     if first_token_seconds is not None:
         timings.append({"stage": "first_token", "seconds": first_token_seconds})
+        # generate_first_token = first_token - 前置阶段耗时（纯模型生成到首 token 的时间）
         timings.append({
             "stage": "generate_first_token",
             "seconds": first_token_seconds - sum(

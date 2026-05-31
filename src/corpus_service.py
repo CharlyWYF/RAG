@@ -1,3 +1,4 @@
+"""语料库文件管理：上传、清洗、删除等操作。"""
 from __future__ import annotations
 
 from datetime import datetime
@@ -11,6 +12,7 @@ from src.i18n import t
 
 def summarize_raw_docs(raw_dir: Path, cleaned_dir: Path) -> dict[str, Any]:
     docs = list_processable_raw_docs(raw_dir)
+    # 统计已清洗文件数：根据 raw→cleaned 映射检查目标是否存在
     cleaned_count = sum(1 for doc in docs if cleaned_target_for(doc, raw_dir, cleaned_dir).exists())
     return {
         "docs": docs,

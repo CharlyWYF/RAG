@@ -1,3 +1,5 @@
+"""知识库构建服务层，封装 ingest 调用并收集运行日志。"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -15,6 +17,8 @@ def run_ingest(
     chunk_strategy: str,
     progress_callback: ProgressCallback | None = None,
 ) -> tuple[dict[str, Any] | None, list[str], str | None]:
+    """执行知识库构建，返回 (统计信息, 运行日志, 错误信息)。"""
+
     runtime_logs: list[str] = []
 
     def report(message: str, progress: float | None = None) -> None:
@@ -28,7 +32,7 @@ def run_ingest(
         stats = build_index(
             mode=mode,
             chunk_strategy=chunk_strategy,
-            progress_callback=report,
+            progress_callback=report,  # 将 report 透传给底层，实现日志级联
         )
     except Exception as exc:
         report(t("kb.build_failed", error=exc), 1.0)
